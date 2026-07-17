@@ -42,20 +42,38 @@ def main(target):
     for f in ("risk-policy.json", "autonomy-matrix.json"):
         shutil.copy(os.path.join(PREC_ROOT, ".precedent", f), os.path.join(prec, f))
 
-    # 3. agent surfaces, pointing at the vendored engine
+    # 2b. protect the user's secret: ensure the target .gitignore excludes the key + runtime state
+    #     (a target without this would commit .precedent/.env — violating guardrail PREC-3).
+    gi = os.path.join(target, ".gitignore")
+    need = [".precedent/.env", ".precedent/captured.json", ".precedent/verdicts.jsonl",
+            ".precedent/events.jsonl", ".precedent/outcomes.jsonl", ".precedent/session_touch.jsonl",
+            ".precedent/engine/__pycache__/"]
+    have = open(gi).read() if os.path.exists(gi) else ""
+    missing = [p for p in need if p not in have]
+    if missing:
+        with open(gi, "a") as f:
+            f.write(("\n" if have and not have.endswith("\n") else "") + "\n# Precedent (keep secrets/state out of git)\n" + "\n".join(missing) + "\n")
+
+    # 3. agent surfaces, pointing at the vendored engine. NEVER clobber the user's existing files.
     E = ".precedent/engine"
-    w(os.path.join(target, ".mcp.json"), json.dumps({
+
+    def w_safe(rel, content):
+        path = os.path.join(target, rel)
+        if os.path.exists(path):
+            print(f"  · kept your existing {rel} (Precedent version at {rel}.precedent-suggested)")
+            w(path + ".precedent-suggested", content)
+        else:
+            w(path, content)
+
+    w_safe(".mcp.json", json.dumps({
         "mcpServers": {"precedent": {"command": "python3", "args": [f"{E}/mcp_server.py"]}}}, indent=2))
-    w(os.path.join(target, ".github", "workflows", "precedent-gate.yml"), _WORKFLOW.replace("{E}", E))
-    shutil.copy(os.path.join(PREC_ROOT, "AGENTS.md"), os.path.join(target, "AGENTS.md"))
-    with open(os.path.join(target, "AGENTS.md")) as f:
-        agents = f.read().replace("python3 src/", f"python3 {E}/")
-    w(os.path.join(target, "AGENTS.md"), agents)
+    w_safe(".github/workflows/precedent-gate.yml", _WORKFLOW.replace("{E}", E))
+    with open(os.path.join(PREC_ROOT, "AGENTS.md")) as f:
+        w_safe("AGENTS.md", f.read().replace("python3 src/", f"python3 {E}/"))
     skill_src = os.path.join(PREC_ROOT, ".claude", "skills", "precedent", "SKILL.md")
     if os.path.exists(skill_src):
         with open(skill_src) as f:
-            w(os.path.join(target, ".claude", "skills", "precedent", "SKILL.md"),
-              f.read().replace("python3 src/", f"python3 {E}/"))
+            w_safe(".claude/skills/precedent/SKILL.md", f.read().replace("python3 src/", f"python3 {E}/"))
 
     print(f"✓ Precedent initialized in {target}")
     print(f"  engine:   {E}/  (vendored)")

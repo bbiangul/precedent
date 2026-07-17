@@ -20,6 +20,7 @@ import govern
 
 CAPTURED = os.path.join(govern.REPO, ".precedent", "captured.json")
 EVENTS = os.path.join(govern.REPO, ".precedent", "events.jsonl")
+_STOP = set("the a an of to and or in on for with by is are be am was were as at from into this that it what should must do does did how can could would will not no new add set get use using used all any each per via you we i my our your their has have had they them then than so if but".split())
 MODEL = os.environ.get("ARM_MODEL", "deepseek/deepseek-v4-flash")
 
 
@@ -94,9 +95,15 @@ def retrieve_packet(query):
     except Exception:                    # no embedding key / offline -> pure-local bm25
         ids = retrieval.bm25(query, precs, k=6)[0]
     # order the candidates by lexical relevance so the packet leads with the most applicable
+    # ABSTENTION: keep only candidates with real CONTENT-term relevance. Score bm25 over the query with
+    # stopwords stripped (in a tiny store, common words like "be"/"should" get non-trivial idf and would
+    # falsely match). This drops pure-vector / common-word noise; when nothing is relevant, `relevant` is
+    # empty and the packet emits the "open question — record it" path instead of attaching a stray guardrail.
+    _clean = " ".join(t for t in retrieval._tok(query) if t not in _STOP and len(t) > 2)
     _bm = retrieval.BM25([retrieval._dtext(p) for p in precs])
-    _sc = {p["id"]: s for p, s in zip(precs, _bm.scores(query))}
-    ids = sorted((i for i in ids if i in byid), key=lambda i: -_sc.get(i, 0))
+    _sc = {p["id"]: s for p, s in zip(precs, _bm.scores(_clean))}
+    FLOOR = 0.5
+    ids = sorted((i for i in ids if i in byid and _sc.get(i, 0) > FLOOR), key=lambda i: -_sc.get(i, 0))
     # build the packet from VERBATIM store data — no model synthesis
     rel = [{"id": i, "authority": byid[i]["authority"], "decision": byid[i]["decision"],
             "reasoning": byid[i].get("reasoning", "")} for i in ids]
