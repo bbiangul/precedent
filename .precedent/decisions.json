@@ -154,6 +154,16 @@
       },
       "decision": "Never commit secrets (API keys) to git; they live in .precedent/.env (gitignored) or a secret manager.",
       "reasoning": "the store and keys stay in the customer's environment."
+    },
+    {
+      "id": "PREC-4",
+      "authority": "guardrail",
+      "scope": {
+        "level": "org",
+        "paths": []
+      },
+      "decision": "The cloud must be near-zero cost at the start \u2014 a HARD requirement. Use free tiers only (Supabase free, Vercel free/serverless), no always-on servers, and a cheap model for the NL query. No paid managed vector DB or paid auth.",
+      "reasoning": "prohibitive infra cost is a non-starter for an early open-source-adjacent product."
     }
   ]
 }
