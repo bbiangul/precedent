@@ -1,0 +1,19 @@
+# secrets — NEVER commit
+.env
+.precedent/.env
+*.key
+
+# runtime state (per-repo, not source)
+.precedent/captured.json
+.precedent/verdicts.jsonl
+.precedent/outcomes.jsonl
+.precedent/ground_truth.jsonl
+.precedent/events.jsonl
+.precedent/session_touch.jsonl
+.precedent/shared.json
+
+# python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/

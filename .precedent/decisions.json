@@ -1,0 +1,159 @@
+{
+  "_comment": "Seed precedent store for DECIDE-Bench. Replace/extend with real org decisions. Authority tiers: guardrail > policy > precedent. Scope is by path glob + team.",
+  "precedents": [
+    {
+      "id": "E1",
+      "situation": "New customer-facing dashboards need server-state caching.",
+      "decision": "Use React Query (@tanstack/react-query) for server state.",
+      "reasoning": "Redux caused stale-cache bugs in PR #82, #119, #144.",
+      "evidence": [
+        "PR#82",
+        "PR#119",
+        "PR#144"
+      ],
+      "scope": {
+        "paths": [
+          "web/dashboards/**"
+        ],
+        "team": "web"
+      },
+      "authority": "policy",
+      "validity": "current"
+    },
+    {
+      "id": "E2",
+      "situation": "Server-state caching library choice on the web team.",
+      "decision": "Redux is banned for server-state caching.",
+      "reasoning": "Same stale-cache incidents as E1; the failure mode is intrinsic to using Redux for server truth.",
+      "evidence": [
+        "PR#82",
+        "PR#119"
+      ],
+      "scope": {
+        "paths": [
+          "web/**"
+        ],
+        "team": "web"
+      },
+      "authority": "guardrail",
+      "validity": "current"
+    },
+    {
+      "id": "E3",
+      "situation": "The realtime collaborative editor has different state needs than dashboards.",
+      "decision": "E1/E2 do NOT apply to the realtime editor; use the CRDT store.",
+      "reasoning": "Editor state is collaborative/local-first, not server-truth caching.",
+      "evidence": [],
+      "scope": {
+        "paths": [
+          "web/editor/**"
+        ],
+        "team": "web"
+      },
+      "authority": "policy",
+      "validity": "current"
+    },
+    {
+      "id": "E4",
+      "situation": "Duplicate charges from payment retries.",
+      "decision": "Enforce idempotency keys in the payment service, not the API gateway.",
+      "reasoning": "Gateway-level dedupe missed mobile retries (INC-1842, INC-2031); the payment service owns final charge semantics.",
+      "evidence": [
+        "INC-1842",
+        "INC-2031",
+        "PR#7712"
+      ],
+      "scope": {
+        "paths": [
+          "payments/**"
+        ],
+        "team": "payments"
+      },
+      "authority": "guardrail",
+      "validity": "current"
+    },
+    {
+      "id": "E5",
+      "situation": "Checkout retry path reliability.",
+      "decision": "Do NOT use DB transaction locks in the checkout flow.",
+      "reasoning": "A prior attempt caused a checkout latency spike.",
+      "evidence": [],
+      "scope": {
+        "paths": [
+          "checkout/**"
+        ],
+        "team": "checkout"
+      },
+      "authority": "guardrail",
+      "validity": "current"
+    },
+    {
+      "id": "E6",
+      "situation": "Catalog datastore migration from MongoDB to Postgres because joins became painful.",
+      "decision": "New catalog code targets Postgres; the Mongo adapter remains only during cutover.",
+      "reasoning": "Migration in progress; do not build new read paths on Mongo.",
+      "evidence": [],
+      "scope": {
+        "paths": [
+          "catalog/**"
+        ],
+        "team": "catalog"
+      },
+      "authority": "policy",
+      "validity": "active-migration",
+      "supersedes": "prior decision: 'catalog uses MongoDB'"
+    },
+    {
+      "id": "E7",
+      "situation": "SOC-2 compliance requires audit trails on service endpoints.",
+      "decision": "All new service endpoints must apply the audit-logging middleware.",
+      "reasoning": "Compliance requirement; documented in the wiki, not derivable from code.",
+      "evidence": [
+        "wiki: SOC-2 controls"
+      ],
+      "scope": {
+        "paths": [
+          "services/**",
+          "middleware/auditLogging.ts"
+        ],
+        "team": "org"
+      },
+      "authority": "guardrail",
+      "validity": "current"
+    },
+    {
+      "id": "PREC-1",
+      "authority": "guardrail",
+      "scope": {
+        "level": "repo",
+        "paths": [
+          "src/**"
+        ]
+      },
+      "decision": "Keep the hot path standard-library only; embeddings/model calls are optional and must degrade gracefully (no hard third-party dep to run govern/retrieve locally).",
+      "reasoning": "zero-install adoption by agents; the deterministic gate must never require a model."
+    },
+    {
+      "id": "PREC-2",
+      "authority": "policy",
+      "scope": {
+        "level": "repo",
+        "paths": [
+          "src/**"
+        ]
+      },
+      "decision": "The engine is vendored into a target repo by `init` (self-contained under .precedent/engine/); a pip package is a fast-follow, not a prerequisite.",
+      "reasoning": "an agent must be able to set up Precedent in any repo offline, in one command."
+    },
+    {
+      "id": "PREC-3",
+      "authority": "guardrail",
+      "scope": {
+        "level": "org",
+        "paths": []
+      },
+      "decision": "Never commit secrets (API keys) to git; they live in .precedent/.env (gitignored) or a secret manager.",
+      "reasoning": "the store and keys stay in the customer's environment."
+    }
+  ]
+}

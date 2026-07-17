@@ -1,0 +1,13 @@
+[project]
+name = "precedent-ai"
+version = "0.1.0"
+description = "Decision memory & permission layer for AI coding agents."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+keywords = ["ai-agents", "coding-agents", "governance", "mcp", "claude-code", "cursor", "codex", "memory", "decisions"]
+dependencies = []   # standard library on the hot path; embeddings/model calls are optional & config-driven
+
+[project.urls]
+Homepage = "https://github.com/bbiangul/precedent"
+Documentation = "https://github.com/bbiangul/precedent/tree/main/docs"

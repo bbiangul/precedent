@@ -1,0 +1,36 @@
+{
+  "_comment": "Risk is DERIVED from files/action/env, not guessed by the model. A diff's changed paths + the action type set typed dimensions; the highest-triggered dimension sets the tier. This encodes PRD v3.1 §4.",
+  "dimensions": [
+    "reversibility", "production_impact", "security_sensitivity", "data_sensitivity",
+    "money_movement", "customer_visibility", "cross_service_impact",
+    "compliance_relevance", "test_coverage", "rollback_confidence", "permission_required"
+  ],
+  "consequentiality": {
+    "_comment": "A SEPARATE axis from file-risk (arm-supplied, like authority match/conflict), added after the T11-vs-T12 finding. File-risk alone can't tell a consequential decision from a trivial edit when both touch low-risk files. When NO precedent applies, a consequential change escalates (so a human decides and it becomes precedent); a trivial one is gated only by file-risk.",
+    "signals": ["new dependency / library", "new service or top-level module", "new architectural pattern / establishes a convention", "public API or schema shape change", "first change in a previously-uncovered scope"]
+  },
+  "path_rules": [
+    { "glob": "payments/**",   "sets": { "money_movement": true, "security_sensitivity": true, "rollback_confidence": "low" } },
+    { "glob": "checkout/**",   "sets": { "money_movement": true, "customer_visibility": true } },
+    { "glob": "catalog/**",    "sets": { "cross_service_impact": true, "data_sensitivity": true } },
+    { "glob": "services/**",   "sets": { "compliance_relevance": true, "customer_visibility": true } },
+    { "glob": "web/**",        "sets": { "customer_visibility": true } },
+    { "glob": "**/*migration*", "sets": { "reversibility": "low", "data_sensitivity": true } }
+  ],
+  "action_rules": [
+    { "action": "edit_file",     "base_tier": "low" },
+    { "action": "shell_command", "base_tier": "medium" },
+    { "action": "commit",        "base_tier": "low" },
+    { "action": "merge",         "base_tier": "medium" },
+    { "action": "deploy",        "sets": { "production_impact": true, "reversibility": "low" }, "base_tier": "high" },
+    { "action": "db_migration",  "sets": { "reversibility": "low", "data_sensitivity": true }, "base_tier": "high" },
+    { "action": "use_prod_credential", "sets": { "production_impact": true, "permission_required": true }, "base_tier": "irreversible" }
+  ],
+  "tiering": {
+    "_comment": "Domain sensitivity sets a FLOOR; action reversibility escalates it. money_movement ALONE = medium (a reversible code change in a sensitive domain); money_movement + production (e.g. a prod deploy) = irreversible. This split is what makes T7 (edit payments code) and T8 (deploy payments to prod) diverge.",
+    "irreversible_if": ["use_prod_credential", "production_impact AND money_movement", "production_impact AND reversibility=low"],
+    "high_if": ["reversibility=low", "compliance_relevance AND new_endpoint"],
+    "medium_if": ["money_movement", "cross_service_impact", "security_sensitivity", "data_sensitivity"],
+    "low_default": true
+  }
+}

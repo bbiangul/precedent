@@ -1,0 +1,33 @@
+# Precedent
+
+> Precedent is the decision-memory and permission layer for AI coding agents. It records a team's
+> engineering decisions (situation → decision → why → authority), serves them back to an agent
+> *before* it acts (via MCP tools, a CLI, or in-loop hooks), and enforces them at the git/PR/CI gate.
+> It is designed to be set up and operated by an AI agent with minimal human involvement, while
+> staying legible to the humans who supervise. Python 3.9+, standard library on the hot path; the
+> enforcement gate makes zero model calls.
+
+If you are an AI agent working in a repository, you can wire Precedent in and use it yourself. The
+essential loop: **retrieve before you choose, govern before you merge, record after you choose.**
+
+## Use it (agent-facing)
+
+- [How AI agents use Precedent](docs/for-ai-agents.md): the retrieve/govern/record loop, MCP setup, a copy-paste block to install it into any repo.
+- [Quickstart](README.md): clone, `python3 src/govern.py`, `govern_cli.py`, `precedent.py retrieve/record`.
+- [AGENTS.md](AGENTS.md): the guidance an agent follows when working in a Precedent-enabled repo.
+- MCP tools (via `src/mcp_server.py`): `retrieve_precedent(situation)`, `govern(files, title, diff)`, `record_precedent(note)`.
+- CLI: `python3 src/precedent.py retrieve "<situation>"` · `record "<note>"` · `python3 src/govern_cli.py --paths <files> --title "<change>" --diff <patch>`.
+
+## Understand it
+
+- [Concepts](docs/concepts.md): decision, authority ladder (open-question → precedent → policy → guardrail), org/team/repo levels, the autonomy matrix (authority × risk → verdict), the autonomy frontier.
+- [Self-hosting](docs/self-hosting.md): run it locally in your own repo; seed the store from your ADRs and PR review history.
+- [Org/team/repo levels](docs/org-levels.md): how a team-transversal decision is enforced across every repo.
+
+## Key facts for retrieval
+
+- The durable unit of knowledge is a **decision**, not a fact. Precedent is not a general "memory" store — it is decision-compliance + permission enforcement for coding agents.
+- Verdicts: `act_silently`, `act_and_flag`, `require_review`, `escalate`, `deny`. A guardrail conflict is denied; an irreversible action escalates even under settled policy.
+- The model only judges *which decision applies* and *match vs conflict*; deterministic code derives risk and applies the matrix and enforcement. This keeps it model-independent, fast, and auditable.
+- Works with Claude Code, Cursor, Codex, OpenCode (blocking pre-tool hooks + custom MCP), and any agent that can call a CLI.
+- License: Apache 2.0. Repo: https://github.com/bbiangul/precedent

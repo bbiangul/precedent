@@ -1,0 +1,53 @@
+name: Precedent gate
+# The v1 enforcement point (the moat): an agent-authored PR cannot auto-merge unless
+# govern(diff) returns act_silently / act_and_flag. Make this a REQUIRED status check in
+# branch protection so the block is enforced, not advisory.
+#
+# govern(diff) = corrected retrieval -> model-judged authority (match/conflict) +
+# consequentiality -> deterministic risk + autonomy matrix -> verdict. The verdict is
+# posted back to the PR as a comment (the escalation surface); a non-allow verdict fails
+# the check and blocks the merge.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write          # to post the verdict comment
+
+jobs:
+  govern:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # need history for the base...head diff
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run govern(diff)
+        id: gov
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}   # semantic authority step; degrades gracefully if unset
+        run: |
+          set +e
+          python3 src/govern_cli.py --title "${{ github.event.pull_request.title }}" > verdict.md
+          echo "allow=$?" >> "$GITHUB_OUTPUT"
+          cat verdict.md
+      - name: Post verdict to PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('verdict.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number, body,
+            });
+      - name: Enforce verdict
+        if: steps.gov.outputs.allow != '0'
+        run: |
+          echo "::error::Precedent gate blocked this merge — see the verdict comment."
+          exit 1

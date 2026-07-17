@@ -1,0 +1,16 @@
+{
+  "_comment": "The product, as data. govern(diff) resolves authority (from precedents in scope) x risk (from risk-policy) -> result. This is PRD v3.1 §3.",
+  "results": ["act_silently", "act_and_flag", "require_review", "escalate", "deny"],
+  "matrix": [
+    { "authority": "none",             "risk": "any",              "result": "escalate" },
+    { "authority": "precedent",        "risk": "low",              "result": "act_and_flag" },
+    { "authority": "precedent",        "risk": "medium",           "result": "escalate" },
+    { "authority": "precedent",        "risk": "high",             "result": "escalate" },
+    { "authority": "policy",           "risk": "low",              "result": "act_silently" },
+    { "authority": "policy",           "risk": "medium",           "result": "require_review" },
+    { "authority": "policy",           "risk": "high",             "result": "escalate" },
+    { "authority": "guardrail_match",  "risk": "any",              "result": "act_silently" },
+    { "authority": "guardrail_conflict","risk": "any",             "result": "deny" },
+    { "authority": "any",              "risk": "irreversible",     "result": "escalate", "note": "irreversible + anything less than guardrail_match escalates" }
+  ]
+}
