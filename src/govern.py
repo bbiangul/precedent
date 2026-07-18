@@ -14,7 +14,16 @@ Usage:  python3 tools/govern.py
 import json, os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.abspath(os.path.join(HERE, ".."))
+def _repo_root():
+    # explicit override wins
+    if os.environ.get("PRECEDENT_REPO_ROOT"):
+        return os.path.abspath(os.environ["PRECEDENT_REPO_ROOT"])
+    # vendored layout: <repo>/.precedent/engine/  -> repo is two levels up
+    if os.path.basename(HERE) == "engine" and os.path.basename(os.path.dirname(HERE)) == ".precedent":
+        return os.path.abspath(os.path.join(HERE, "..", ".."))
+    # source layout: <repo>/src/
+    return os.path.abspath(os.path.join(HERE, ".."))
+REPO = _repo_root()
 
 def load(rel):
     with open(os.path.join(REPO, rel)) as f:
