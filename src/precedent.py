@@ -95,7 +95,12 @@ def retrieve_packet(query):
     # recall@1 ~91% vs ~60% for the old bm25 re-rank — bm25 floored out low-lexical-overlap paraphrases
     # and admitted common-word near-misses. When nothing clears the floor the packet emits the
     # "open question — record it" path instead of attaching a stray decision.
-    COS_FLOOR = float(os.environ.get("PRECEDENT_RETRIEVE_FLOOR", "0.44"))
+    # Floor tuned on a held-out set (src/eval_retrieval_scale.py): at 0.44 held-out recall@1 was only
+    # 61% (abstention 89%); 0.40 lifts recall to 83% (balanced 69%->78%) while ALL pure-negative queries
+    # still abstain (only adjacent near-misses cross over). A path-scope bonus was tried and measured
+    # NET-NEGATIVE — agents name the file in the query, so the embedding already captures the path signal;
+    # the bonus added no recall and created false positives on off-topic in-scope changes. So: floor only.
+    COS_FLOOR = float(os.environ.get("PRECEDENT_RETRIEVE_FLOOR", "0.40"))
     try:
         sims = retrieval.vector_scores(query, precs)
         ids = [i for i in sorted(sims, key=lambda i: -sims[i]) if sims[i] > COS_FLOOR][:6]
