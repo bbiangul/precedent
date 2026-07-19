@@ -1,0 +1,21 @@
+{
+  "name": "precedent-cli",
+  "version": "0.1.0",
+  "description": "The decision layer for AI coding agents — retrieve, govern, record, and retire team decisions. One `npx precedent-cli init` to install into any repo.",
+  "bin": { "precedent": "bin/precedent.js" },
+  "files": [
+    "bin/",
+    "src/",
+    "AGENTS.md",
+    ".claude/skills/precedent/SKILL.md",
+    ".precedent/risk-policy.json",
+    ".precedent/autonomy-matrix.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": { "node": ">=16" },
+  "keywords": ["ai", "agents", "coding-agents", "decisions", "governance", "guardrails", "precedent", "claude", "cursor", "codex"],
+  "homepage": "https://precedent.sh",
+  "repository": { "type": "git", "url": "https://github.com/bbiangul/precedent.git" },
+  "license": "Apache-2.0"
+}

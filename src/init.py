@@ -70,6 +70,12 @@ def main(target):
     w_safe(".github/workflows/precedent-gate.yml", _WORKFLOW.replace("{E}", E))
     with open(os.path.join(PREC_ROOT, "AGENTS.md")) as f:
         w_safe("AGENTS.md", f.read().replace("python3 src/", f"python3 {E}/"))
+    # Claude Code reads CLAUDE.md; point it at the full guidance in AGENTS.md (no-clobber)
+    w_safe("CLAUDE.md", "# Project instructions for Claude\n\n"
+           "This repo uses **Precedent** — a decision layer for agents. Follow **[AGENTS.md](AGENTS.md)**:\n"
+           "retrieve before you choose, govern before you merge, record after you choose, "
+           "propose-deprecate when a decision goes stale. The `precedent` MCP tools and CLI "
+           f"(`python3 {E}/precedent.py ...`) are available.\n")
     skill_src = os.path.join(PREC_ROOT, ".claude", "skills", "precedent", "SKILL.md")
     if os.path.exists(skill_src):
         with open(skill_src) as f:
@@ -78,7 +84,7 @@ def main(target):
     print(f"✓ Precedent initialized in {target}")
     print(f"  engine:   {E}/  (vendored)")
     print(f"  store:    .precedent/decisions.json  ({'existing, kept' if os.path.getsize(dec)>30 else 'empty'})")
-    print("  surfaces: AGENTS.md · .mcp.json · Claude skill · .github/workflows/precedent-gate.yml")
+    print("  surfaces: AGENTS.md · CLAUDE.md · .mcp.json · Claude skill · .github/workflows/precedent-gate.yml")
     print("\nNext:")
     print("  1. export OPENROUTER_API_KEY=...  (and add it as a repo secret for CI)")
     print(f"  2. seed the store:  python3 {E}/extract/extract_decisions.py .   "
