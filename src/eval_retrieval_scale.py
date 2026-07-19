@@ -107,27 +107,61 @@ QUERIES = [
  ("what's the office wifi password?","ABSTAIN"),
 ]
 
+# HELD-OUT queries — authored AFTER the floor was tuned on QUERIES, new phrasings/angles.
+# The floor is NOT tuned on these, so this is the de-biased number to trust.
+HELDOUT = [
+ ("can I cache something forever with no expiry?","D03"),
+ ("what's the lifetime of our bearer tokens?","D04"),
+ ("is it fine to encode the user's full name in the token?","D06"),
+ ("do superuser accounts need two-factor?","D07"),
+ ("can I use server-side session cookies?","D08"),
+ ("I'm removing a field from a public API response — allowed?","D10"),
+ ("my endpoint could return fifty thousand items — what do I do?","D12"),
+ ("how should I shape a 400 error response body?","D13"),
+ ("will this migration break during a rolling deploy?","D14"),
+ ("can I delete an unused column right away?","D15"),
+ ("how do I make logs traceable across services?","D17"),
+ ("can I print the API key to debug an issue?","D18"),
+ ("is catch(e){} with nothing inside acceptable?","D20"),
+ ("calling a flaky third-party API — what's required?","D21"),
+ ("how do I stop a retried payment from charging twice?","D22"),
+ ("can I store the full card number in our database?","D23"),
+ ("does stored personal data need encryption?","D25"),
+ ("GDPR erasure request — how fast must we act?","D26"),
+ ("are floating semver ranges allowed for packages?","D27"),
+ ("insert the order and its line items atomically — how?","D29"),
+ ("can I use styled-components for a new component?","D33"),
+ ("should I put fetched API data into Redux?","D34"),
+ ("can I put the DB password in a committed .env file?","D35"),
+ ("what caching should a CDN edge use?","ABSTAIN"),
+ ("how do we version a gRPC service?","ABSTAIN"),
+ ("what's our database read-replica strategy?","ABSTAIN"),
+ ("do we support biometric login?","ABSTAIN"),
+ ("how should we A/B test a new feature?","ABSTAIN"),
+ ("which Slack channel is for release announcements?","ABSTAIN"),
+ ("what's the company dress code?","ABSTAIN"),
+ ("how do I book a meeting room?","ABSTAIN"),
+ ("what's the office coffee machine brand?","ABSTAIN"),
+]
+
+def _score(qset, ranked):
+    pos = [x for x in qset if x[1] != "ABSTAIN"]
+    neg = [x for x in qset if x[1] == "ABSTAIN"]
+    r1 = sum(1 for q, t in pos if ranked(q)[:1] == [t])
+    absk = sum(1 for q, _ in neg if not ranked(q))
+    return (f"recall@1 {r1}/{len(pos)}={r1/len(pos)*100:.0f}%  "
+            f"abstention {absk}/{len(neg)}={absk/len(neg)*100:.0f}%  "
+            f"balanced {r1+absk}/{len(qset)}={(r1+absk)/len(qset)*100:.0f}%")
+
 def main():
     precs = [{"id": i, "decision": t, "authority": a, "reasoning": "team convention",
               "scope": {"paths": [], "level": "org"}} for (i, a, t) in CORPUS]
     precedent._all_precedents = lambda: precs          # eval against the fixed corpus
     def ranked(q):
         return [r["id"] for r in precedent.retrieve_packet(q).get("relevant", [])]
-    pos = [x for x in QUERIES if x[1] != "ABSTAIN"]
-    neg = [x for x in QUERIES if x[1] == "ABSTAIN"]
-    r1 = r3 = mrr = 0
-    for q, t in pos:
-        ids = ranked(q)
-        if ids[:1] == [t]: r1 += 1
-        if t in ids[:3]: r3 += 1
-        if t in ids: mrr += 1 / (ids.index(t) + 1)
-    absk = sum(1 for q, _ in neg if not ranked(q))
-    print(f"corpus {len(precs)} decisions | {len(pos)} positive + {len(neg)} abstain queries\n")
-    print(f"recall@1   : {r1}/{len(pos)} = {r1/len(pos)*100:.0f}%")
-    print(f"recall@3   : {r3}/{len(pos)} = {r3/len(pos)*100:.0f}%")
-    print(f"MRR        : {mrr/len(pos):.2f}")
-    print(f"abstention : {absk}/{len(neg)} = {absk/len(neg)*100:.0f}%  (false-positive {(len(neg)-absk)/len(neg)*100:.0f}%)")
-    print(f"balanced   : {r1+absk}/{len(QUERIES)} = {(r1+absk)/len(QUERIES)*100:.0f}%  (recall@1 + abstention)")
+    print(f"corpus {len(precs)} decisions\n")
+    print(f"in-sample (floor tuned here) : {_score(QUERIES, ranked)}")
+    print(f"HELD-OUT  (de-biased, trust) : {_score(HELDOUT, ranked)}")
 
 if __name__ == "__main__":
     main()
