@@ -1,6 +1,6 @@
 {
   "name": "precedent-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The decision layer for AI coding agents — retrieve, govern, record, and retire team decisions. One `npx precedent-cli init` to install into any repo.",
   "bin": {
     "precedent": "bin/precedent.js"
