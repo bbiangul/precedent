@@ -55,7 +55,13 @@ def load_decisions():
     shared = os.environ.get("PRECEDENT_SHARED", os.path.join(REPO, ".precedent", "shared.json"))
     org_team = _load_precedents(shared, "team")          # declared level (org/team) is kept if present
     repo = _load_precedents(os.path.join(REPO, ".precedent", "decisions.json"), "repo")
-    return org_team + repo                                # org/team first, then repo
+    return [d for d in (org_team + repo) if is_active(d)]  # never serve deprecated/superseded/revoked
+
+INACTIVE = {"deprecated", "superseded", "revoked"}
+def is_active(d):
+    """A decision still binds unless it's been deprecated/superseded/revoked. A 'proposed_deprecation'
+    stays active (still served, but flagged) until a human confirms — admission control symmetry."""
+    return d.get("status", "active") not in INACTIVE and d.get("validity", "current") not in INACTIVE
 
 DECISIONS = load_decisions()
 RISK = load(".precedent/risk-policy.json")

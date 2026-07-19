@@ -68,9 +68,9 @@ def _llm(prompt, max_tokens=2500, json_mode=True):
     return None
 
 def _all_precedents():
-    store = list(govern.DECISIONS)
+    store = list(govern.DECISIONS)                         # already active-filtered by govern
     if os.path.exists(CAPTURED):
-        store += json.load(open(CAPTURED)).get("precedents", [])
+        store += [p for p in json.load(open(CAPTURED)).get("precedents", []) if govern.is_active(p)]
     return store
 
 def _summary(p):
@@ -179,7 +179,72 @@ def record(note):
     print(f"✓ recorded {ep['id']} (authority: UNCONFIRMED — a human must promote it to policy/guardrail)")
     print(json.dumps(ep, indent=2))
 
+DECISIONS_FILE = os.path.join(govern.REPO, ".precedent", "decisions.json")
+
+def _find_and_update(dec_id, mutate):
+    """Find a decision by id across the captured + committed stores, apply mutate(d), persist."""
+    for path in (CAPTURED, DECISIONS_FILE):
+        if not os.path.exists(path):
+            continue
+        store = json.load(open(path))
+        precs = store.get("precedents", store) if isinstance(store, dict) else store
+        for d in precs:
+            if isinstance(d, dict) and d.get("id") == dec_id:
+                mutate(d)
+                with open(path, "w") as f:
+                    json.dump(store, f, indent=2)
+                return os.path.basename(path)
+    return None
+
+def deprecate(dec_id, reason="", superseded_by=None, revoke=False, propose=False, actor="human"):
+    """Retire a decision. Human applies immediately; agent (--propose) only PROPOSES — the decision
+    stays active + flagged until `confirm-deprecation` (admission control, mirrors record/promote)."""
+    import datetime
+    status = ("proposed_deprecation" if propose else "revoked" if revoke
+              else "superseded" if superseded_by else "deprecated")
+    meta = {"by": actor, "reason": reason, "at": datetime.datetime.now().isoformat(timespec="seconds")}
+    if superseded_by:
+        meta["superseded_by"] = superseded_by
+    where = _find_and_update(dec_id, lambda d: d.update({"status": status, "deprecation": meta}))
+    if not where:
+        print(f"decision {dec_id} not found"); return
+    _log_event("deprecate", id=dec_id, status=status, actor=actor)
+    if propose:
+        print(f"⚠ {dec_id}: deprecation PROPOSED by {actor} — still active until a human runs "
+              f"`precedent.py confirm-deprecation {dec_id}`. reason: {reason or '(none)'}")
+    else:
+        print(f"✓ {dec_id} → {status}" + (f" (superseded by {superseded_by})" if superseded_by else "")
+              + " — it will no longer be retrieved or enforced.")
+
+def confirm_deprecation(dec_id):
+    import datetime
+    def m(d):
+        prev = d.get("deprecation", {})
+        d["status"] = "superseded" if prev.get("superseded_by") else "deprecated"
+        prev.update({"confirmed_by": "human", "confirmed_at": datetime.datetime.now().isoformat(timespec="seconds")})
+        d["deprecation"] = prev
+    if not _find_and_update(dec_id, m):
+        print(f"decision {dec_id} not found"); return
+    _log_event("confirm_deprecation", id=dec_id)
+    print(f"✓ {dec_id} deprecation confirmed — no longer retrieved or enforced.")
+
 if __name__ == "__main__":
-    if len(sys.argv) < 3 or sys.argv[1] not in ("retrieve", "record"):
-        print('usage: precedent.py [retrieve|record] "<text>"'); sys.exit(2)
-    (retrieve if sys.argv[1] == "retrieve" else record)(sys.argv[2])
+    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    a = sys.argv[2:]
+    def _opt(f):
+        return a[a.index(f) + 1] if f in a and a.index(f) + 1 < len(a) else None
+    if cmd == "retrieve" and a:
+        retrieve(a[0])
+    elif cmd == "record" and a:
+        record(a[0])
+    elif cmd == "deprecate" and a:
+        deprecate(a[0], reason=_opt("--reason") or "", superseded_by=_opt("--superseded-by"),
+                  revoke="--revoke" in a, propose="--propose" in a,
+                  actor=_opt("--actor") or ("agent" if "--propose" in a else "human"))
+    elif cmd == "confirm-deprecation" and a:
+        confirm_deprecation(a[0])
+    else:
+        print('usage: precedent.py retrieve|record "<text>"\n'
+              '       precedent.py deprecate <id> [--reason R] [--superseded-by ID] [--revoke] [--propose]\n'
+              '       precedent.py confirm-deprecation <id>')
+        sys.exit(2)

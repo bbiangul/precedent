@@ -59,6 +59,16 @@ TOOLS = [
                                     "action": {"type": "string",
                                               "description": "edit_file | merge | deploy | db_migration | ..."}},
                      "required": ["files"]}},
+    {"name": "deprecate_precedent",
+     "description": ("PROPOSE retiring a recorded decision that is now wrong, outdated, or replaced by a "
+                     "newer one. You cannot retract unilaterally — this files a proposal; the decision "
+                     "stays active (still enforced) until a human confirms. Use when a decision "
+                     "contradicts current reality or a newer decision supersedes it."),
+     "inputSchema": {"type": "object", "additionalProperties": False,
+                     "properties": {"id": {"type": "string", "description": "Decision id to retire (e.g. E2, C-003)."},
+                                    "reason": {"type": "string", "description": "Why it should be retired."},
+                                    "superseded_by": {"type": "string", "description": "Optional id of the replacement."}},
+                     "required": ["id", "reason"]}},
 ]
 
 def _tool(name, args):
@@ -69,6 +79,11 @@ def _tool(name, args):
         ep = precedent.record_episode(args["note"])
         return (f"recorded {ep['id']} (authority: unconfirmed — a human must promote it)\n"
                 + json.dumps(ep, indent=2))
+    if name == "deprecate_precedent":
+        precedent.deprecate(args["id"], reason=args.get("reason", ""),
+                            superseded_by=args.get("superseded_by"), propose=True, actor="agent")
+        return (f"deprecation of {args['id']} PROPOSED (reason: {args.get('reason','')}). It stays active "
+                "and enforced until a human confirms — you cannot retract a decision unilaterally.")
     if name == "govern":
         v = govern_cli.govern_diff(args["files"], args.get("title", ""), args.get("action"),
                                    diff=args.get("diff", ""))
