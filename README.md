@@ -37,7 +37,27 @@ grows the decision store).
 
 ## ✨ Quickstart (60 seconds)
 
-Precedent is Python 3.9+, standard library only for the hot path (no heavy deps to run locally).
+### Install into your repo — one command
+
+```bash
+npx precedent-cli init          # vendors the engine + wires every agent harness
+```
+
+`init` drops Precedent into every agent you run **without overwriting your existing rules** —
+it appends a marked block to `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` / `.github/copilot-instructions.md`,
+writes `.cursor/rules` + `.windsurf/rules` + the Claude Code skill, and merges the `precedent`
+MCP server into `.mcp.json` / `.cursor/mcp.json` (keeping your other servers). Then:
+
+```bash
+npx precedent-cli retrieve "add a caching layer to the dashboard"
+npx precedent-cli govern --paths web/Chart.tsx --title "Add Redux for server-state"
+npx precedent-cli record "situation: …; decided …; because …; scope web/**"
+npx precedent-cli hygiene --propose      # batch: contradictions + stale decisions
+```
+
+Requires Python 3.9+ on PATH (the engine is stdlib-only for the hot path — no heavy deps).
+
+### Or run from source
 
 ```bash
 git clone https://github.com/bbiangul/precedent && cd precedent
