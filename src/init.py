@@ -9,7 +9,7 @@ paths pointing at the vendored engine. Idempotent: won't clobber an existing dec
 Usage:
   python3 src/init.py /path/to/target-repo     # or "." for the current repo
 """
-import json, os, shutil, sys
+import json, os, re, shutil, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))          # .../precedent/src
 PREC_ROOT = os.path.dirname(HERE)
@@ -54,37 +54,102 @@ def main(target):
         with open(gi, "a") as f:
             f.write(("\n" if have and not have.endswith("\n") else "") + "\n# Precedent (keep secrets/state out of git)\n" + "\n".join(missing) + "\n")
 
-    # 3. agent surfaces, pointing at the vendored engine. NEVER clobber the user's existing files.
+    # 3. agent surfaces for every major harness. NEVER clobber the user's existing rules:
+    #    shared instruction files get a marker-delimited block appended (or updated in place);
+    #    MCP config is merged (other servers kept); Precedent-owned files are written outright.
     E = ".precedent/engine"
+    A, B = "<!-- precedent:start -->", "<!-- precedent:end -->"
 
-    def w_safe(rel, content):
+    def _mkdirs(path):
+        d = os.path.dirname(path)
+        if d and not os.path.exists(d):
+            os.makedirs(d, exist_ok=True)
+
+    def upsert(rel, body):
+        """Insert/refresh a Precedent block between markers, preserving everything else."""
         path = os.path.join(target, rel)
+        _mkdirs(path)
+        section = f"{A}\n{body.rstrip()}\n{B}"
         if os.path.exists(path):
-            print(f"  · kept your existing {rel} (Precedent version at {rel}.precedent-suggested)")
-            w(path + ".precedent-suggested", content)
+            cur = open(path).read()
+            if A in cur and B in cur:
+                new = re.sub(re.escape(A) + r"[\s\S]*?" + re.escape(B), lambda _m: section, cur)
+                act = "refreshed Precedent block in"
+            else:
+                new = cur.rstrip() + "\n\n" + section + "\n"
+                act = "appended Precedent block to your existing"
         else:
-            w(path, content)
+            new = section + "\n"
+            act = "created"
+        w(path, new)
+        print(f"  · {act} {rel}")
 
-    w_safe(".mcp.json", json.dumps({
-        "mcpServers": {"precedent": {"command": "python3", "args": [f"{E}/mcp_server.py"]}}}, indent=2))
-    w_safe(".github/workflows/precedent-gate.yml", _WORKFLOW.replace("{E}", E))
+    def merge_mcp(rel, args):
+        """Add the precedent MCP server without dropping the user's other servers."""
+        path = os.path.join(target, rel)
+        _mkdirs(path)
+        data = {}
+        if os.path.exists(path):
+            try:
+                data = json.load(open(path))
+            except Exception:
+                print(f"  · {rel} exists but isn't valid JSON — skipped (add precedent manually)")
+                return
+        kept = [k for k in data.get("mcpServers", {}) if k != "precedent"]
+        data.setdefault("mcpServers", {})["precedent"] = {"command": "python3", "args": args}
+        w(path, json.dumps(data, indent=2) + "\n")
+        print(f"  · registered precedent MCP in {rel}" + (f" (kept: {', '.join(kept)})" if kept else ""))
+
+    def owned(rel, content):
+        """Precedent-namespaced file — safe to write/refresh outright."""
+        path = os.path.join(target, rel)
+        _mkdirs(path)
+        w(path, content)
+        print(f"  · wrote {rel}")
+
+    # concise cross-harness pointer (full guidance lives in AGENTS.md / the skill)
+    pointer = ("## Precedent — the decision layer (auto-installed)\n\n"
+        "This repo uses **Precedent**. Before you change code, **retrieve** the decisions that bind; "
+        "at the merge gate, **govern**; after you decide, **record**; when a decision is stale or wrong, "
+        "**propose deprecation** (agents propose — a human retires). Full guidance: `AGENTS.md`.\n\n"
+        f"- retrieve:  `python3 {E}/precedent.py retrieve \"<what you're deciding>\"`\n"
+        f"- govern:    `python3 {E}/govern_cli.py --paths <files> --title \"<change>\"`\n"
+        f"- record:    `python3 {E}/precedent.py record \"<situation; decided X; because Y; scope>\"`\n"
+        f"- deprecate: `python3 {E}/precedent.py deprecate <id> --reason \"<why>\"`\n\n"
+        "The MCP server `precedent` exposes the same tools.\n")
+
+    # CI gate — Precedent-owned, but never clobber a user's edited copy
+    wf = os.path.join(target, ".github/workflows/precedent-gate.yml")
+    if not os.path.exists(wf):
+        owned(".github/workflows/precedent-gate.yml", _WORKFLOW.replace("{E}", E))
+
+    # shared instruction files (append-safe) — one per harness family that reads them
     with open(os.path.join(PREC_ROOT, "AGENTS.md")) as f:
-        w_safe("AGENTS.md", f.read().replace("python3 src/", f"python3 {E}/"))
-    # Claude Code reads CLAUDE.md; point it at the full guidance in AGENTS.md (no-clobber)
-    w_safe("CLAUDE.md", "# Project instructions for Claude\n\n"
-           "This repo uses **Precedent** — a decision layer for agents. Follow **[AGENTS.md](AGENTS.md)**:\n"
-           "retrieve before you choose, govern before you merge, record after you choose, "
-           "propose-deprecate when a decision goes stale. The `precedent` MCP tools and CLI "
-           f"(`python3 {E}/precedent.py ...`) are available.\n")
+        agents_full = f.read().replace("python3 src/", f"python3 {E}/")
+    upsert("AGENTS.md", agents_full)          # Codex · OpenCode · Cursor · Jules · Aider · Zed
+    upsert("CLAUDE.md", pointer)              # Claude Code
+    upsert("GEMINI.md", pointer)              # Gemini CLI
+    upsert(".github/copilot-instructions.md", pointer)   # GitHub Copilot
+
+    # Precedent-owned rule files (harness-specific namespaces)
+    owned(".cursor/rules/precedent.mdc",
+          "---\ndescription: Precedent — team decisions that bind this repo\nalwaysApply: true\n---\n\n" + pointer)
+    owned(".windsurf/rules/precedent.md", pointer)       # Windsurf / Codeium
     skill_src = os.path.join(PREC_ROOT, ".claude", "skills", "precedent", "SKILL.md")
     if os.path.exists(skill_src):
         with open(skill_src) as f:
-            w_safe(".claude/skills/precedent/SKILL.md", f.read().replace("python3 src/", f"python3 {E}/"))
+            owned(".claude/skills/precedent/SKILL.md", f.read().replace("python3 src/", f"python3 {E}/"))
+
+    # MCP registration (merged — other servers preserved)
+    merge_mcp(".mcp.json", [f"{E}/mcp_server.py"])       # Claude Code · Codex · generic
+    merge_mcp(".cursor/mcp.json", [f"{E}/mcp_server.py"])  # Cursor
 
     print(f"✓ Precedent initialized in {target}")
     print(f"  engine:   {E}/  (vendored)")
     print(f"  store:    .precedent/decisions.json  ({'existing, kept' if os.path.getsize(dec)>30 else 'empty'})")
-    print("  surfaces: AGENTS.md · CLAUDE.md · .mcp.json · Claude skill · .github/workflows/precedent-gate.yml")
+    print("  harnesses: AGENTS.md (Codex/OpenCode/Cursor/Aider/Zed) · CLAUDE.md + skill (Claude Code) ·")
+    print("             GEMINI.md · copilot-instructions.md · .cursor/rules · .windsurf/rules")
+    print("  mcp:      .mcp.json · .cursor/mcp.json    ·    ci: .github/workflows/precedent-gate.yml")
     print("\nNext:")
     print("  1. export OPENROUTER_API_KEY=...  (and add it as a repo secret for CI)")
     print(f"  2. seed the store:  python3 {E}/extract/extract_decisions.py .   "
