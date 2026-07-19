@@ -25,7 +25,11 @@ import precedent, retrieval
 
 COMMENTS = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "review_comments.json")
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, "mined_decisions.json")
-SIM = 0.80                      # cluster threshold on rule embeddings
+# Cluster threshold on rule embeddings, calibrated to the LOCAL embedding scale
+# (measured: same-rule pairs ~0.45-0.87, different-rule pairs ~0.14-0.25, so ~0.40
+# separates cleanly). 0.80 was tuned for a hosted embedding model and under-clustered
+# here, defeating the frequency->authority signal. Override with PRECEDENT_CLUSTER_SIM.
+SIM = float(os.environ.get("PRECEDENT_CLUSTER_SIM", "0.40"))
 STRONG = re.compile(r"\b(must|never|always|require|required|prohibit|forbidden|shall|do not|don't)\b", re.I)
 
 
