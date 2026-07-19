@@ -182,6 +182,9 @@ def review(min_support=3, bad_rate=0.5, propose=False):
         if a["n"] >= min_support and bad / a["n"] >= bad_rate:
             flagged.append((did, dict(a), bad))
     flagged.sort(key=lambda x: (-x[2] / x[1]["n"], -x[2]))
+    if not agg:                                   # empty ledger — "none stale" would be false reassurance
+        print("no outcome data yet (ledger empty) — staleness is NOT measurable. Wire outcomes "
+              "(outcome.py label / GitHub webhook) first."); return
     if not flagged:
         print(f"no stale decisions: none with >={min_support} governed outcomes and >={bad_rate:.0%} bad."); return
     print(f"── Stale-decision review ({len(flagged)} flagged; >={min_support} outcomes, >={bad_rate:.0%} bad) ──")

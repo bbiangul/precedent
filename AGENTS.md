@@ -51,3 +51,13 @@ can't retract a decision on your own. In-loop, use the MCP `deprecate_precedent`
 the store honest so the next agent doesn't inherit a stale rule.
 
 > Rule of thumb: **retrieve before you choose, record after you choose, propose-deprecate when one goes stale.**
+
+## Store hygiene (maintenance — NOT the coding loop)
+Do **not** run this inline while coding — it's a batch pass (CI/nightly, or when a human asks you to
+"audit/clean up the decision store"). It surfaces **contradictions** (two rules that can't both hold) and
+decisions whose PRs keep going wrong, as deprecation **proposals** a human confirms:
+
+```
+python3 src/hygiene.py            # report contradictions + stale decisions
+python3 src/hygiene.py --propose  # file the proposals
+```

@@ -1,0 +1,20 @@
+name: Precedent hygiene
+# Batch sanitization — runs OFF the write path (weekly + on demand), never inline on record.
+# Surfaces contradictions and decisions whose PRs keep going wrong, as proposals a human confirms.
+on:
+  schedule:
+    - cron: "0 6 * * 1"        # Mondays 06:00 UTC
+  workflow_dispatch:
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run hygiene
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          python3 src/hygiene.py | tee "$GITHUB_STEP_SUMMARY"
