@@ -33,9 +33,13 @@ def _load_precedents(path, default_level):
     """Load a precedent file, tagging each decision's scope.level if not already set."""
     try:
         with open(path) as f:
-            ps = json.load(f).get("precedents", [])
+            raw = json.load(f)
+        # accept the store shape {"precedents": [...]}, the extract/ingest shape
+        # {"decisions": [...]}, or a bare list — so pre-fill output loads directly.
+        ps = (raw.get("precedents") or raw.get("decisions") or []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
     except Exception:
         return []
+    ps = [p for p in ps if isinstance(p, dict)]
     for p in ps:
         sc = p.setdefault("scope", {})
         sc.setdefault("paths", [])
