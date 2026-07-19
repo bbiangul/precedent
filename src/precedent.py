@@ -154,6 +154,9 @@ def record_episode(note):
                 ep = None
     if ep is None:  # raw fallback — never lose the capture
         ep = {"situation": note, "decision": note, "reasoning": "", "scope_paths": [], "evidence": []}
+    # the LLM can return valid JSON missing some keys — never let a partial parse crash record()
+    for k, dv in (("situation", note), ("decision", note), ("reasoning", ""), ("scope_paths", []), ("evidence", [])):
+        ep.setdefault(k, dv)
     ep["authority"] = "unconfirmed"      # admission control (PRD §4.5)
     ep["source"] = "agent-capture"
     try:                                 # record-time enrichment: makes it findable by triggering
