@@ -57,6 +57,32 @@ def extract(text, source_kind, relpath):
     except Exception:
         return []
 
+def semantic_dedup(decisions, sim=None):
+    """Collapse paraphrases of the SAME rule that the exact-text dedup misses (multi-pass emits
+    them). Threshold is high (default 0.65) so it merges true dupes without touching distinct
+    same-topic rules (measured: same-rule pairs ~0.76-0.88, distinct-same-topic ~0.34-0.41)."""
+    if len(decisions) < 2:
+        return decisions
+    sim = float(os.environ.get("PRECEDENT_EXTRACT_DEDUP_SIM", "0.90")) if sim is None else sim
+    try:
+        import math, retrieval
+        vecs = retrieval._embed([d["decision"] for d in decisions])
+    except Exception:
+        return decisions                       # offline / no key -> keep exact-dedup result
+    import math
+    def nrm(v):
+        n = math.sqrt(sum(x * x for x in v)) or 1
+        return [x / n for x in v]
+    vecs = [nrm(v) for v in vecs]
+    kept, keptv = [], []
+    for d, v in zip(decisions, vecs):
+        if any(sum(a * b for a, b in zip(v, kv)) >= sim for kv in keptv):
+            continue                            # near-identical to a kept rule -> drop
+        kept.append(d); keptv.append(v)
+    for i, d in enumerate(kept):                 # re-number after removals
+        d["id"] = f"BS-{i+1:04d}"
+    return kept
+
 def main(repo, outp):
     docs = gather(repo)
     print(f"source docs: {len(docs)} (ADR/BEP/CONVENTION)", flush=True)
@@ -86,6 +112,16 @@ def main(repo, outp):
                     "category": d.get("category", "tech"),
                     "scope": {"paths": scope_for(rel)}, "source": rel})
         print(f"  {rel}: {len(decisions)} total", flush=True)
+    # SEMANTIC dedup is OPT-IN and off by default. A scaled stress test (~1000+ items) showed a fixed
+    # cosine threshold over-merges badly at scale — even at 0.80, ~30% of DISTINCT rules got wrongly
+    # collapsed (greedy chaining), i.e. it silently deletes real decisions. The exact-text dedup above is
+    # safe (only byte-identical restatements). Enable PRECEDENT_EXTRACT_SEMANTIC_DEDUP=1 only if you will
+    # review the result; tune the (deliberately high) threshold via PRECEDENT_EXTRACT_DEDUP_SIM.
+    if os.environ.get("PRECEDENT_EXTRACT_SEMANTIC_DEDUP") == "1":
+        before = len(decisions)
+        decisions = semantic_dedup(decisions)
+        if len(decisions) < before:
+            print(f"  semantic dedup (opt-in): {before} -> {len(decisions)} merged", flush=True)
     json.dump({"decisions": decisions}, open(outp, "w"), indent=2)
     # distribution report
     from collections import Counter
