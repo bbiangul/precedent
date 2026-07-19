@@ -1,0 +1,7 @@
+# keep the published package lean
+**/__pycache__/
+*.pyc
+.precedent/decisions.json
+.precedent/captured.json
+.precedent/*.jsonl
+benchmark/
