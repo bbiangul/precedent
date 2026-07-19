@@ -176,6 +176,15 @@ def vector(query, decisions, k=6, **_):
     ranked = sorted(range(len(decisions)), key=lambda i: -sims[i])
     return [decisions[i]["id"] for i in ranked[:k]], time.time() - t
 
+def vector_scores(query, decisions):
+    """{id: cosine} for every decision (cached decision embeddings). Used for semantic
+    ranking + abstention in the packet — the semantic signal BM25 alone throws away."""
+    ck = tuple(d["id"] for d in decisions)
+    if ck not in _EMB_CACHE:
+        _EMB_CACHE[ck] = _embed([_dtext(d) for d in decisions])
+    qv = _embed([query])[0]
+    return {d["id"]: _cos(qv, dv) for d, dv in zip(decisions, _EMB_CACHE[ck])}
+
 def hybrid(query, decisions, k=6, files=None, **_):
     """Union of the model-free candidate generators: scope (exact) + bm25 (lexical) + vector (semantic)."""
     t = time.time()
