@@ -60,6 +60,10 @@ def extract(text, source_kind, relpath):
 def main(repo, outp):
     docs = gather(repo)
     print(f"source docs: {len(docs)} (ADR/BEP/CONVENTION)", flush=True)
+    # LLM extraction is non-deterministic — a single pass can miss a doc entirely or
+    # only part of it. Run PASSES per doc and union (the dedup below collapses overlap),
+    # which recovers whole-doc and partial misses. More passes = better recall, more calls.
+    passes = int(os.environ.get("PRECEDENT_EXTRACT_PASSES", "2"))
     decisions, seen_txt = [], set()
     for kind, path in docs:
         rel = os.path.relpath(path, repo)
@@ -67,19 +71,20 @@ def main(repo, outp):
             text = open(path, encoding="utf-8", errors="ignore").read()
         except Exception:
             continue
-        for d in extract(text, kind, rel):
-            if not isinstance(d, dict) or not d.get("decision"):
-                continue
-            norm = re.sub(r"[^a-z0-9]+", "", d["decision"].lower())   # drop near-identical restatements
-            if norm in seen_txt:
-                continue
-            seen_txt.add(norm)
-            decisions.append({
-                "id": f"BS-{len(decisions)+1:04d}",
-                "decision": d["decision"], "reasoning": d.get("reasoning", ""),
-                "authority": d.get("authority", "policy") if d.get("authority") in ("guardrail","policy","precedent") else "policy",
-                "category": d.get("category", "tech"),
-                "scope": {"paths": scope_for(rel)}, "source": rel})
+        for _ in range(passes):
+            for d in extract(text, kind, rel):
+                if not isinstance(d, dict) or not d.get("decision"):
+                    continue
+                norm = re.sub(r"[^a-z0-9]+", "", d["decision"].lower())   # drop near-identical restatements
+                if norm in seen_txt:
+                    continue
+                seen_txt.add(norm)
+                decisions.append({
+                    "id": f"BS-{len(decisions)+1:04d}",
+                    "decision": d["decision"], "reasoning": d.get("reasoning", ""),
+                    "authority": d.get("authority", "policy") if d.get("authority") in ("guardrail","policy","precedent") else "policy",
+                    "category": d.get("category", "tech"),
+                    "scope": {"paths": scope_for(rel)}, "source": rel})
         print(f"  {rel}: {len(decisions)} total", flush=True)
     json.dump({"decisions": decisions}, open(outp, "w"), indent=2)
     # distribution report
