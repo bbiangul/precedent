@@ -18,19 +18,25 @@ def scope_for(relpath):
     return [f"{m.group(1)}/{m.group(2)}/**"] if m else []   # else global/unscoped (realistic)
 
 def gather(repo, cap=140):
-    docs = []
+    docs, seen = [], set()
+    def add(kind, p):
+        rp = os.path.abspath(p)                     # a file matched by several globs is processed once
+        if rp in seen:
+            return
+        seen.add(rp)
+        docs.append((kind, p))
     for p in sorted(glob.glob(os.path.join(repo, "docs/architecture-decisions/adr0*.md"))):
         if "template" not in p:
-            docs.append(("ADR", p))
+            add("ADR", p)
     for p in sorted(glob.glob(os.path.join(repo, "beps/*/README.md"))):
-        docs.append(("BEP", p))
+        add("BEP", p)
     kw = re.compile(r"contribut|convention|style|naming|test|best.?practic|guideline|structure|"
                     r"standard|pattern|architect|design|security|api-|lint|format|review|deprecat|"
                     r"migrat|error|config|auth|permission", re.I)
     conv = [p for p in glob.glob(os.path.join(repo, "docs/**/*.md"), recursive=True)
             if kw.search(os.path.relpath(p, repo)) and "node_modules" not in p]
     for p in sorted(set(conv))[:cap]:
-        docs.append(("CONVENTION", p))
+        add("CONVENTION", p)
     return docs
 
 def extract(text, source_kind, relpath):
@@ -54,7 +60,7 @@ def extract(text, source_kind, relpath):
 def main(repo, outp):
     docs = gather(repo)
     print(f"source docs: {len(docs)} (ADR/BEP/CONVENTION)", flush=True)
-    decisions = []
+    decisions, seen_txt = [], set()
     for kind, path in docs:
         rel = os.path.relpath(path, repo)
         try:
@@ -64,6 +70,10 @@ def main(repo, outp):
         for d in extract(text, kind, rel):
             if not isinstance(d, dict) or not d.get("decision"):
                 continue
+            norm = re.sub(r"[^a-z0-9]+", "", d["decision"].lower())   # drop near-identical restatements
+            if norm in seen_txt:
+                continue
+            seen_txt.add(norm)
             decisions.append({
                 "id": f"BS-{len(decisions)+1:04d}",
                 "decision": d["decision"], "reasoning": d.get("reasoning", ""),
