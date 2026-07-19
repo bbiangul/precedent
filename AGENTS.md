@@ -38,4 +38,16 @@ That's the whole burden — no schema, no form. Record liberally: an unrecorded 
 is exactly how the next agent repeats the mistake you just avoided. Your captured
 decisions enter as **unconfirmed** and become authoritative only when a human promotes them.
 
-> Rule of thumb: **retrieve before you choose, record after you choose.** Both directions, every time.
+## When a decision is wrong or outdated (propose deprecation)
+If a recorded decision now contradicts reality or a newer decision replaces it, don't silently work
+around it — **propose retiring it**:
+
+```
+python3 src/precedent.py deprecate <id> --reason "<why it's outdated>" [--superseded-by <newid>] --propose
+```
+
+You **propose**; it stays active and enforced until a human confirms (`confirm-deprecation <id>`) — you
+can't retract a decision on your own. In-loop, use the MCP `deprecate_precedent` tool. Deprecating keeps
+the store honest so the next agent doesn't inherit a stale rule.
+
+> Rule of thumb: **retrieve before you choose, record after you choose, propose-deprecate when one goes stale.**
