@@ -2,7 +2,11 @@
 
 # 🔐 Precedent
 
-**The decision memory & permission layer for AI coding agents.**
+**The decision layer & permission layer for AI coding agents.**
+
+[![npm](https://img.shields.io/npm/v/precedent-cli?color=22c99a&label=precedent-cli)](https://www.npmjs.com/package/precedent-cli)
+[![license](https://img.shields.io/npm/l/precedent-cli?color=22c99a)](LICENSE)
+[![site](https://img.shields.io/badge/precedent.sh-live-22c99a)](https://precedent.sh)
 
 Your agents keep re-deciding things your team already settled — which library, which pattern,
 whether to touch payments. Precedent records those decisions once, serves them back to the agent
