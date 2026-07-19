@@ -5,7 +5,7 @@
   "bin": { "precedent": "bin/precedent.js" },
   "files": [
     "bin/",
-    "src/",
+    "src/**/*.py",
     "AGENTS.md",
     ".claude/skills/precedent/SKILL.md",
     ".precedent/risk-policy.json",
