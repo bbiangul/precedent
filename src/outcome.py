@@ -165,6 +165,39 @@ def metrics():
           "that unblocks retrieval measurement (export).")
 
 
+def review(min_support=3, bad_rate=0.5, propose=False):
+    """Outcome-driven staleness detector. A decision whose governed PRs keep going wrong is probably
+    wrong: `reverted` (an act_* verdict citing it caused harm) or `blocked_overridden` (it blocked a
+    PR a human then merged = false block / too strict). Flag decisions over the bad-rate threshold and
+    optionally PROPOSE their deprecation (a human confirms — same admission control as agents)."""
+    from collections import defaultdict
+    agg = defaultdict(lambda: defaultdict(int))
+    for o in _read(OUTCOMES):
+        for did in o.get("applied_decisions", []):
+            agg[did][o["outcome"]] += 1
+            agg[did]["n"] += 1
+    flagged = []
+    for did, a in agg.items():
+        bad = a["reverted"] + a["blocked_overridden"]
+        if a["n"] >= min_support and bad / a["n"] >= bad_rate:
+            flagged.append((did, dict(a), bad))
+    flagged.sort(key=lambda x: (-x[2] / x[1]["n"], -x[2]))
+    if not flagged:
+        print(f"no stale decisions: none with >={min_support} governed outcomes and >={bad_rate:.0%} bad."); return
+    print(f"── Stale-decision review ({len(flagged)} flagged; >={min_support} outcomes, >={bad_rate:.0%} bad) ──")
+    for did, a, bad in flagged:
+        kind = ("keeps causing reverts" if a["reverted"] >= a["blocked_overridden"] else "keeps getting overridden (false block)")
+        print(f"  {did}: {bad}/{a['n']} bad ({a['reverted']} reverted, {a['blocked_overridden']} overridden) — {kind}")
+    if not propose:
+        print("\nRun with --propose to file deprecation proposals (a human then confirms).")
+        return
+    import precedent
+    for did, a, bad in flagged:
+        reason = (f"outcome-detector: {bad}/{a['n']} governed PRs went wrong "
+                  f"({a['reverted']} reverted, {a['blocked_overridden']} overridden)")
+        precedent.deprecate(did, reason=reason, propose=True, actor="outcome-detector")
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -173,6 +206,8 @@ def main():
     p.add_argument("--incident", default=None)
     p = sub.add_parser("ingest"); p.add_argument("path")
     sub.add_parser("export"); sub.add_parser("metrics")
+    p = sub.add_parser("review"); p.add_argument("--propose", action="store_true")
+    p.add_argument("--min-support", type=int, default=3); p.add_argument("--bad-rate", type=float, default=0.5)
     a = ap.parse_args()
     if a.cmd == "label":
         label(a.vid, a.outcome, a.applied, a.reason, a.incident)
@@ -182,6 +217,8 @@ def main():
         export_ground_truth()
     elif a.cmd == "metrics":
         metrics()
+    elif a.cmd == "review":
+        review(a.min_support, a.bad_rate, a.propose)
 
 
 if __name__ == "__main__":
