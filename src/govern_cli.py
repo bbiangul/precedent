@@ -14,9 +14,9 @@ change matches or conflicts; DETERMINISTIC code derives risk and applies the mat
 keeps the verdict model-independent, fast, auditable, and ours.
 
 Usage:
-  python3 tools/govern_cli.py                       # gate the current PR (git diff vs base)
-  python3 tools/govern_cli.py --paths a.ts b.py --title "..."   # gate an explicit change
-  python3 tools/govern_cli.py --json               # machine-readable verdict on stdout
+  npx precedent-cli govern                       # gate the current PR (git diff vs base)
+  npx precedent-cli govern --paths a.ts b.py --title "..."   # gate an explicit change
+  npx precedent-cli govern --json                # machine-readable verdict on stdout
 """
 import argparse, json, os, re, subprocess, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -268,7 +268,7 @@ def render(v):
          f"- **candidates retrieved:** {len(v['candidate_ids'])}"
          + (f" ({', '.join(v['candidate_ids'])})" if v['candidate_ids'] else ""),
          f"- **why:** {v['why'] or '—'}"]
-    rec = (f'python3 tools/precedent.py record "situation: {v["title"] or "this change"}; '
+    rec = (f'npx precedent-cli record "situation: {v["title"] or "this change"}; '
            f'decided <X>; because <reason>; scope {" ".join(v["paths"]) or "<paths>"}"')
     if not v["allow"]:
         L += ["", "### Why blocked / what's needed",
@@ -330,7 +330,7 @@ def main():
         print(render(v))
         if vid:
             print(f"\n_verdict id: {vid}_ — when this PR resolves, capture the outcome:\n"
-                  f"  python3 tools/outcome.py label {vid} <merged_clean|reverted|blocked_upheld|"
+                  f"  npx precedent-cli outcome label {vid} <merged_clean|reverted|blocked_upheld|"
                   f"blocked_overridden> --applied <ids> --reason \"...\"")
     sys.exit(0 if v["allow"] else 1)
 

@@ -9,7 +9,7 @@ Tools:
   govern(files, action?)        -> autonomy verdict: act_silently/act_and_flag/require_review/escalate/deny
 
 Register in Claude Code (project scope) via .mcp.json, or:
-  claude mcp add precedent -- python3 tools/mcp_server.py
+  claude mcp add precedent -- python3 .precedent/engine/mcp_server.py
 """
 import json, sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

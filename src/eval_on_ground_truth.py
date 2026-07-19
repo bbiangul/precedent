@@ -6,7 +6,7 @@ This is the reusable consumer that, once a design partner's PRs accrue, yields t
 recall number the lab couldn't (LLM labels capped ~66% with 58% self-disagreement). Same store
 the product governs; same soft retrieval as the hot path.
 
-Usage: OPENROUTER_API_KEY=... python3 tools/eval_on_ground_truth.py
+Usage: OPENROUTER_API_KEY=... python3 .precedent/engine/eval_on_ground_truth.py
 """
 import json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -17,7 +17,7 @@ GT_FILE = os.path.join(govern.REPO, ".precedent", "ground_truth.jsonl")
 
 def main():
     if not os.path.exists(GT_FILE):
-        sys.exit("no ground_truth.jsonl yet — run: python3 tools/outcome.py export")
+        sys.exit("no ground_truth.jsonl yet — run: npx precedent-cli outcome export")
     rows = [json.loads(l) for l in open(GT_FILE)]
     store = precedent._all_precedents()
     retr = [r for r in rows if r.get("gt")]                    # tasks with a confirmed decision

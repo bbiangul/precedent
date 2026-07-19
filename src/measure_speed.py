@@ -5,7 +5,7 @@ The govern pipeline = ONE model call (authority+consequentiality extraction) + a
 deterministic matrix step (~0 ms, measured). The enforcement gate (govern_pr.py) is
 ZERO model calls. This quantifies the "small fast model + instant matrix" claim.
 
-Usage: OPENROUTER_API_KEY=... python3 tools/measure_speed.py <model>
+Usage: OPENROUTER_API_KEY=... python3 .precedent/engine/measure_speed.py <model>
 """
 import json, os, sys, time, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

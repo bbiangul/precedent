@@ -34,7 +34,7 @@ def main():
     msg = ("Before finishing: you made changes in territory with NO recorded precedent "
            f"({', '.join(scopes) or 'a risky action'}). If you made a decision there (a pattern, a "
            "library/data-store choice, a reuse/canonical-source call), RECORD it so the next agent "
-           'inherits it: python3 tools/precedent.py record "situation; decided X; because Y; scope <paths>". '
+           'inherits it: npx precedent-cli record "situation; decided X; because Y; scope <paths>". '
            "If nothing worth recording, you may stop.")
     print(json.dumps({"decision": "block", "reason": msg,
                       "hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": msg}}))

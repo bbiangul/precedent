@@ -100,7 +100,7 @@ def main(propose=False):
         for did, reason, sup in proposals:
             precedent.deprecate(did, reason=reason, superseded_by=sup, propose=True, actor="hygiene")
     elif proposals:
-        print("\nRun with --propose to file contradiction proposals (and `outcome.py review --propose` for staleness).")
+        print("\nRun with --propose to file contradiction proposals (and `npx precedent-cli outcome review --propose` for staleness).")
 
 if __name__ == "__main__":
     main(propose="--propose" in sys.argv)

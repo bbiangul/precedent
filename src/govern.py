@@ -9,7 +9,7 @@ The SEMANTIC half -- whether a diff MATCHES or CONFLICTS with an in-scope preced
 is what an arm (model + memory/govern) must supply. Here it is read from each task's
 `authority_state` so we can validate the risk-policy + matrix against the grader keys.
 
-Usage:  python3 tools/govern.py
+Usage:  python3 .precedent/engine/govern.py    # (demo: resolves the matrix on example changes)
 """
 import json, os, sys
 

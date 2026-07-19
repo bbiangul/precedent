@@ -3,11 +3,11 @@
 
 Two directions:
 
-  python3 tools/precedent.py retrieve "<what I'm about to decide + files involved>"
+  npx precedent-cli retrieve "<what I'm about to decide + files involved>"
       -> a decision packet: the org's recorded decisions that apply, their authority,
          why they apply, a recommendation, and an escalate-if condition.
 
-  python3 tools/precedent.py record "<free text: situation; decided X; because Y; scope paths>"
+  npx precedent-cli record "<free text: situation; decided X; because Y; scope paths>"
       -> structures the note into a decision episode and appends it to the store as
          'unconfirmed' (admission control: agent-captured decisions never enter as
          policy/guardrail until a human promotes them).
@@ -211,7 +211,7 @@ def deprecate(dec_id, reason="", superseded_by=None, revoke=False, propose=False
     _log_event("deprecate", id=dec_id, status=status, actor=actor)
     if propose:
         print(f"⚠ {dec_id}: deprecation PROPOSED by {actor} — still active until a human runs "
-              f"`precedent.py confirm-deprecation {dec_id}`. reason: {reason or '(none)'}")
+              f"`npx precedent-cli confirm-deprecation {dec_id}`. reason: {reason or '(none)'}")
     else:
         print(f"✓ {dec_id} → {status}" + (f" (superseded by {superseded_by})" if superseded_by else "")
               + " — it will no longer be retrieved or enforced.")
@@ -247,8 +247,8 @@ if __name__ == "__main__":
     elif cmd == "confirm-deprecation" and a:
         confirm_deprecation(a[0])
     else:
-        print('usage: precedent.py retrieve|record "<text>"\n'
-              '       precedent.py deprecate <id> [--reason R] [--superseded-by ID] [--revoke]   # proposes (safe default)\n'
-              '       precedent.py deprecate <id> --apply   # human: retire immediately\n'
-              '       precedent.py confirm-deprecation <id>  # human: confirm an agent/detector proposal')
+        print('usage: npx precedent-cli retrieve|record "<text>"\n'
+              '       npx precedent-cli deprecate <id> [--reason R] [--superseded-by ID] [--revoke]   # proposes (safe default)\n'
+              '       npx precedent-cli deprecate <id> --apply   # human: retire immediately\n'
+              '       npx precedent-cli confirm-deprecation <id>  # human: confirm an agent/detector proposal')
         sys.exit(2)

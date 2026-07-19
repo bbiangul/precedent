@@ -53,7 +53,7 @@ class BM25:
 
 def _dtext(d):
     base = d["decision"] + " " + d.get("reasoning", "") + " " + d.get("category", "")
-    e = d.get("enrichment")          # record-time enrichment (triggers/anti-pattern/keywords) — see tools/enrich.py
+    e = d.get("enrichment")          # record-time enrichment (triggers/anti-pattern/keywords) — see enrich.py
     if e:
         base += " " + " ".join(e.get("triggers", [])) + " " + e.get("anti_pattern", "") \
                 + " " + " ".join(e.get("keywords", []))

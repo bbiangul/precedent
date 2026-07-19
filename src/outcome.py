@@ -25,10 +25,10 @@ a revert PR or linked incident -> reverted; a human approval+merge after a faili
 blocked_overridden; a close/relabel after a block -> blocked_upheld.
 
 Usage:
-  python3 tools/outcome.py label V-0003 reverted --applied E4 --reason "missed idempotency key"
-  python3 tools/outcome.py ingest event.json          # a GitHub PR/merge webhook payload
-  python3 tools/outcome.py export                      # -> .precedent/ground_truth.jsonl (retrieval GT)
-  python3 tools/outcome.py metrics                     # enforcement-quality report
+  npx precedent-cli outcome label V-0003 reverted --applied E4 --reason "missed idempotency key"
+  npx precedent-cli outcome ingest event.json          # a GitHub PR/merge webhook payload
+  npx precedent-cli outcome export                      # -> .precedent/ground_truth.jsonl (retrieval GT)
+  npx precedent-cli outcome metrics                     # enforcement-quality report
 """
 import argparse, json, os, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

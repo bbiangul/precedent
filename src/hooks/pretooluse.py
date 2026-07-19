@@ -77,7 +77,7 @@ def main():
                      "recorded decision. Treat it as a NEW consequential decision: consider `govern` first, "
                      "and record the rationale.")
     lines.append('If you are making a NEW decision here, record it: '
-                 'python3 tools/precedent.py record "situation; decided X; because Y; scope <paths>"')
+                 'npx precedent-cli record "situation; decided X; because Y; scope <paths>"')
 
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "PreToolUse", "additionalContext": "\n".join(lines)}}))

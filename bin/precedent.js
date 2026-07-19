@@ -43,7 +43,8 @@ function run(script, args, root) {
 
 const [cmd, ...rest] = process.argv.slice(2)
 const SCRIPTS = { retrieve: 'precedent.py', record: 'precedent.py', deprecate: 'precedent.py',
-  'confirm-deprecation': 'precedent.py', govern: 'govern_cli.py', hygiene: 'hygiene.py', sync: 'sync.py' }
+  'confirm-deprecation': 'precedent.py', govern: 'govern_cli.py', hygiene: 'hygiene.py',
+  outcome: 'outcome.py', sync: 'sync.py' }
 
 if (cmd === 'init') {
   run(path.join(BUNDLED, 'init.py'), [rest[0] || process.cwd()], null)
