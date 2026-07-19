@@ -9,7 +9,7 @@ paths pointing at the vendored engine. Idempotent: won't clobber an existing dec
 Usage:
   python3 src/init.py /path/to/target-repo     # or "." for the current repo
 """
-import json, os, re, shutil, sys
+import json, os, re, shutil, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))          # .../precedent/src
 PREC_ROOT = os.path.dirname(HERE)
@@ -151,11 +151,12 @@ def main(target):
     print("             GEMINI.md · copilot-instructions.md · .cursor/rules · .windsurf/rules")
     print("  mcp:      .mcp.json · .cursor/mcp.json    ·    ci: .github/workflows/precedent-gate.yml")
     print("\nNext:")
-    print("  1. export OPENROUTER_API_KEY=...  (and add it as a repo secret for CI)")
+    print("  1. export OPENROUTER_API_KEY=...   (a model key for the semantic steps)")
     print(f"  2. seed the store:  python3 {E}/extract/extract_decisions.py .   "
           f"and/or  python3 {E}/extract/mine_enforcements.py")
-    print("  3. make the 'Precedent gate' a required status check in branch protection")
-    print(f"  4. use it:  python3 {E}/precedent.py retrieve \"<what you're deciding>\"")
+    print("  3. wire the CI gate on GitHub (agent-runnable):  npx precedent-cli init --github")
+    print("     └ enforces the 'govern' check on the default branch; leaves you ONE step: `gh secret set OPENROUTER_API_KEY`")
+    print(f"  4. use it:  npx precedent-cli retrieve \"<what you're deciding>\"")
 
 
 _WORKFLOW = """name: Precedent gate
@@ -198,7 +199,45 @@ jobs:
           exit 1
 """
 
+def wire_github(target):
+    """Wire the CI gate on GitHub, doing everything an agent CAN do autonomously — leaving the human
+    exactly ONE step: sharing the secret. Every gh call is best-effort; on failure we print the manual
+    command so setup still completes. Requires `gh` authenticated."""
+    def gh(*args, **kw):
+        return subprocess.run(["gh", *args], cwd=target, capture_output=True, text=True, **kw)
+    print("\n── GitHub wiring (precedent init --github) ──")
+    if subprocess.run(["gh", "auth", "status"], capture_output=True).returncode != 0:
+        print("  gh not authenticated — run `gh auth login`, then re-run with --github. Skipping.")
+        return
+    repo = gh("repo", "view", "--json", "nameWithOwner,defaultBranchRef")
+    if repo.returncode != 0:
+        print("  no GitHub repo detected here (add a remote / `gh repo create`). Skipping GitHub wiring.")
+        return
+    info = json.loads(repo.stdout)
+    slug = info["nameWithOwner"]; branch = info.get("defaultBranchRef", {}).get("name", "main")
+    print(f"  repo: {slug}  (default branch: {branch})")
+    # 1. make the gate a REQUIRED check on the default branch (best-effort; the agent does this)
+    body = json.dumps({"required_status_checks": {"strict": True, "contexts": ["govern"]},
+                       "enforce_admins": False, "required_pull_request_reviews": None, "restrictions": None})
+    prot = gh("api", "--method", "PUT", f"repos/{slug}/branches/{branch}/protection",
+              "--input", "-", input=body)
+    if prot.returncode == 0:
+        print(f"  ✓ required status check 'govern' enforced on {branch} (a failing gate now blocks merge)")
+    else:
+        print(f"  · couldn't set branch protection automatically (needs admin/private-repo plan). To do it:\n"
+              f"    gh api --method PUT repos/{slug}/branches/{branch}/protection --input - <<'JSON'\n"
+              f"    {body}\n    JSON")
+    # 2. the ONE human step: share the secret (the agent must NOT handle the key)
+    print("\n  → ONE human step remains — share the model key as a repo secret (you paste it, not the agent):")
+    print("      gh secret set OPENROUTER_API_KEY        # get a key at https://openrouter.ai/keys")
+    print("    (Only the semantic match/conflict step needs it; the gate's matrix is deterministic.)")
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("usage: python3 src/init.py <target-repo-dir>")
-    main(sys.argv[1])
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    flags = {a for a in sys.argv[1:] if a.startswith("-")}
+    if len(args) != 1:
+        sys.exit("usage: python3 src/init.py <target-repo-dir> [--github]")
+    main(args[0])
+    if "--github" in flags:
+        wire_github(os.path.abspath(args[0]))

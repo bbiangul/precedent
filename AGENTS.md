@@ -61,3 +61,13 @@ decisions whose PRs keep going wrong, as deprecation **proposals** a human confi
 python3 src/hygiene.py            # report contradictions + stale decisions
 python3 src/hygiene.py --propose  # file the proposals
 ```
+
+## Set up enforcement on GitHub (once per repo — you can do this yourself)
+`init` writes the CI gate workflow. To finish wiring it, run this yourself with the `gh` CLI:
+
+```
+npx precedent-cli init --github   # enforces the 'govern' status check on the default branch
+```
+
+Do **everything** except one step: the human shares the model key as a secret (`gh secret set
+OPENROUTER_API_KEY`) — never handle that key yourself. That single secret is the only human touch.

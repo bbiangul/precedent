@@ -47,7 +47,9 @@ const SCRIPTS = { retrieve: 'precedent.py', record: 'precedent.py', deprecate: '
   outcome: 'outcome.py', sync: 'sync.py' }
 
 if (cmd === 'init') {
-  run(path.join(BUNDLED, 'init.py'), [rest[0] || process.cwd()], null)
+  const flags = rest.filter(a => a.startsWith('-'))
+  const target = rest.find(a => !a.startsWith('-')) || process.cwd()
+  run(path.join(BUNDLED, 'init.py'), [target, ...flags], null)
 } else if (cmd in SCRIPTS) {
   const file = SCRIPTS[cmd]
   const { script, root } = engineScript(file)
@@ -58,7 +60,7 @@ if (cmd === 'init') {
   console.log(`Precedent — the decision layer for AI agents (https://precedent.sh)
 
 Usage:
-  npx precedent-cli init [dir]                 vendor the engine + AGENTS.md/CLAUDE.md/skill/MCP/CI into a repo
+  npx precedent-cli init [dir] [--github]      vendor the engine + AGENTS.md/CLAUDE.md/skill/MCP/CI; --github wires the CI gate
   npx precedent-cli retrieve "<situation>"     decisions that apply before you act
   npx precedent-cli govern --paths <f> --title "<change>"   autonomy verdict at the merge gate
   npx precedent-cli record "<situation; decided X; because Y; scope paths>"
