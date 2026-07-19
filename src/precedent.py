@@ -238,13 +238,17 @@ if __name__ == "__main__":
     elif cmd == "record" and a:
         record(a[0])
     elif cmd == "deprecate" and a:
+        # FAIL-SAFE: default is PROPOSE. Retiring a decision (esp. a guardrail) needs explicit human
+        # intent via --apply, so a shell-capable agent can't silently disable enforcement.
+        apply = "--apply" in a
         deprecate(a[0], reason=_opt("--reason") or "", superseded_by=_opt("--superseded-by"),
-                  revoke="--revoke" in a, propose="--propose" in a,
-                  actor=_opt("--actor") or ("agent" if "--propose" in a else "human"))
+                  revoke="--revoke" in a, propose=not apply,
+                  actor=_opt("--actor") or ("human" if apply else "agent"))
     elif cmd == "confirm-deprecation" and a:
         confirm_deprecation(a[0])
     else:
         print('usage: precedent.py retrieve|record "<text>"\n'
-              '       precedent.py deprecate <id> [--reason R] [--superseded-by ID] [--revoke] [--propose]\n'
-              '       precedent.py confirm-deprecation <id>')
+              '       precedent.py deprecate <id> [--reason R] [--superseded-by ID] [--revoke]   # proposes (safe default)\n'
+              '       precedent.py deprecate <id> --apply   # human: retire immediately\n'
+              '       precedent.py confirm-deprecation <id>  # human: confirm an agent/detector proposal')
         sys.exit(2)
