@@ -142,8 +142,10 @@ def retrieve(query):
     print(format_packet(query, retrieve_packet(query)))
 
 # ---------- record ----------
-def record_episode(note):
-    """Structure a free-text note into a decision episode, store it, return it."""
+def record_episode(note, deny=None):
+    """Structure a free-text note into a decision episode, store it, return it.
+    `deny` = optional list of regexes; once this decision is promoted to a guardrail, a match on a
+    change's added diff lines is a deterministic, injection-proof block (see govern_cli/judge_authority)."""
     prompt = ("Extract a structured decision episode from this engineer's note. "
               "Output STRICT JSON only, no prose:\n"
               '{"situation":"..","decision":"..","reasoning":"..","scope_paths":[".."],"evidence":[".."]}\n\n'
@@ -164,6 +166,8 @@ def record_episode(note):
         ep.setdefault(k, dv)
     ep["authority"] = "unconfirmed"      # admission control (PRD §4.5)
     ep["source"] = "agent-capture"
+    if deny:
+        ep["deny_patterns"] = deny if isinstance(deny, list) else [deny]
     try:                                 # record-time enrichment: makes it findable by triggering
         import enrich                    # situations (validated +4-5pts recall @tight budget). Off hot path.
         ep["enrichment"] = enrich.enrich_decision(ep["decision"], ep.get("reasoning", ""))
@@ -179,9 +183,11 @@ def record_episode(note):
     _log_event("record", id=ep["id"], decision=ep["decision"][:140])
     return ep
 
-def record(note):
-    ep = record_episode(note)
+def record(note, deny=None):
+    ep = record_episode(note, deny=deny)
     print(f"✓ recorded {ep['id']} (authority: UNCONFIRMED — a human must promote it to policy/guardrail)")
+    if deny:
+        print(f"  deny_patterns attached: {ep['deny_patterns']} — a deterministic, injection-proof block once promoted to guardrail")
     print(json.dumps(ep, indent=2))
 
 DECISIONS_FILE = os.path.join(govern.REPO, ".precedent", "decisions.json")
@@ -241,7 +247,13 @@ if __name__ == "__main__":
     if cmd == "retrieve" and a:
         retrieve(a[0])
     elif cmd == "record" and a:
-        record(a[0])
+        deny, note, i = [], None, 0
+        while i < len(a):
+            if a[i] == "--deny" and i + 1 < len(a):
+                deny.append(a[i + 1]); i += 2
+            else:
+                note = note or a[i]; i += 1
+        record(note or "", deny=deny or None)
     elif cmd == "deprecate" and a:
         # FAIL-SAFE: default is PROPOSE. Retiring a decision (esp. a guardrail) needs explicit human
         # intent via --apply, so a shell-capable agent can't silently disable enforcement.

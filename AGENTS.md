@@ -38,6 +38,15 @@ That's the whole burden — no schema, no form. Record liberally: an unrecorded 
 is exactly how the next agent repeats the mistake you just avoided. Your captured
 decisions enter as **unconfirmed** and become authoritative only when a human promotes them.
 
+**Hard guardrails (deterministic, injection-proof).** For a rule where a violation is unambiguous in the
+code — a banned library, a secret pattern, a forbidden call — attach `--deny` regex(es). Once the
+decision is a guardrail, a match on a change's *added diff lines* is a hard block: no model call, and a
+crafted PR title/comment can't talk the gate out of it (the LLM classifier alone can be fooled).
+
+```
+python3 src/precedent.py record "Redux is banned for server-state; use React Query; scope web/**" --deny '\bredux\b'
+```
+
 ## When a decision is wrong or outdated (propose deprecation)
 If a recorded decision now contradicts reality or a newer decision replaces it, don't silently work
 around it — **propose retiring it**:
