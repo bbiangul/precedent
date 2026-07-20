@@ -235,16 +235,33 @@ def wire_github(target):
         return
     info = json.loads(repo.stdout)
     slug = info["nameWithOwner"]; branch = info.get("defaultBranchRef", {}).get("name", "main")
+    owner = slug.split("/")[0]
     print(f"  repo: {slug}  (default branch: {branch})")
-    # 1. make the gate a REQUIRED check on the default branch (best-effort; the agent does this)
+    # 1. CODEOWNERS — a PR must not be able to disable its OWN gate. Require a code-owner review for any
+    #    change to the workflow or the decision store. (Enforced by require_code_owner_reviews below.)
+    co = os.path.join(target, ".github", "CODEOWNERS")
+    os.makedirs(os.path.dirname(co), exist_ok=True)
+    cur = open(co).read() if os.path.exists(co) else ""
+    want = [f"/.github/ @{owner}", f"/.precedent/ @{owner}"]
+    add = [l for l in want if l.split()[0] not in cur]
+    if add:
+        with open(co, "a") as f:
+            f.write(("\n" if cur and not cur.endswith("\n") else "")
+                    + "# Precedent: the gate + the decision store require a code-owner review — a PR can't silently disable its own guardrails.\n"
+                    + "\n".join(add) + "\n")
+        print(f"  ✓ CODEOWNERS: changes to .github/ and .precedent/ require @{owner} review")
+    # 2. make the gate a REQUIRED check + require code-owner review (best-effort; the agent does this)
     body = json.dumps({"required_status_checks": {"strict": True, "contexts": ["govern"]},
-                       "enforce_admins": False, "required_pull_request_reviews": None, "restrictions": None})
+                       "enforce_admins": False,
+                       "required_pull_request_reviews": {"require_code_owner_reviews": True,
+                                                         "required_approving_review_count": 1},
+                       "restrictions": None})
     prot = gh("api", "--method", "PUT", f"repos/{slug}/branches/{branch}/protection",
               "--input", "-", input=body)
     if prot.returncode == 0:
-        print(f"  ✓ required status check 'govern' enforced on {branch} (a failing gate now blocks merge)")
+        print(f"  ✓ branch protection on {branch}: 'govern' required + code-owner review on the gate/store")
     else:
-        print(f"  · couldn't set branch protection automatically (needs admin/private-repo plan). To do it:\n"
+        print(f"  · couldn't set branch protection automatically (needs admin/paid plan for private repos). To do it:\n"
               f"    gh api --method PUT repos/{slug}/branches/{branch}/protection --input - <<'JSON'\n"
               f"    {body}\n    JSON")
     # 2. the ONE human step: share the secret (the agent must NOT handle the key)
