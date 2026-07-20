@@ -179,19 +179,24 @@ jobs:
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           set +e
-          python3 {E}/govern_cli.py --title "${{ github.event.pull_request.title }}" > verdict.md
+          python3 {E}/govern_cli.py --title "$PR_TITLE" > verdict.md
           echo "allow=$?" >> "$GITHUB_OUTPUT"
           cat verdict.md
-      - name: Post verdict
+      - name: Post verdict (sticky comment)
         if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number, body: fs.readFileSync('verdict.md','utf8') });
+            const body = '<!-- precedent-gate -->\\n' + fs.readFileSync('verdict.md', 'utf8');
+            const { owner, repo } = context.repo, issue_number = context.issue.number;
+            const { data: cs } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const prev = cs.find(c => c.body && c.body.includes('<!-- precedent-gate -->'));
+            if (prev) await github.rest.issues.updateComment({ owner, repo, comment_id: prev.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });
       - name: Enforce
         if: steps.gov.outputs.allow != '0'
         run: |
