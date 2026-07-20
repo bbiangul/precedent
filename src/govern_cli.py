@@ -188,6 +188,20 @@ def judge_authority(query, paths, action, candidates, reps=None, diff="", perche
     consistency: sample `reps` times and MAJORITY-vote the authority_state (ties toward the less-
     restrictive reading to avoid over-denying). Deterministic fallback if the model is unavailable."""
     reps = reps or JUDGE_REPS
+    # DETERMINISTIC backstop (injection-proof): a candidate guardrail whose deny_patterns match the ADDED
+    # diff lines is a HARD conflict — no model call needed. Matches code, not prose, so a crafted title/
+    # comment can't talk the gate out of it. Mirrors the cloud /api/govern.
+    added = "\n".join(l for l in (diff or "").splitlines() if l[:1] == "+" and not l.startswith("+++"))
+    if added:
+        for d in candidates:
+            if d.get("authority") == "guardrail":
+                for p in (d.get("deny_patterns") or []):
+                    try:
+                        if re.search(p, added, re.I):
+                            return "guardrail_conflict", True, [d["id"]], \
+                                   f"{d['id']}: matched a deny pattern in the diff"
+                    except re.error:
+                        pass
     use_pc = PERCHECK if percheck is None else percheck
     if use_pc and diff and diff.strip() and precedent._key():
         return _judge_percheck(query, paths, action, diff, reps)   # per-guardrail compliance check
