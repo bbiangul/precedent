@@ -2,20 +2,40 @@
 
 # 🔐 Precedent
 
-**The decision layer & permission layer for AI coding agents.**
+**The decision layer for AI coding agents** — decisions that bind, enforced at the merge gate.
 
 [![npm](https://img.shields.io/npm/v/precedent-cli?color=22c99a&label=precedent-cli)](https://www.npmjs.com/package/precedent-cli)
 [![license](https://img.shields.io/npm/l/precedent-cli?color=22c99a)](LICENSE)
 [![site](https://img.shields.io/badge/precedent.sh-live-22c99a)](https://precedent.sh)
 
-Your agents keep re-deciding things your team already settled — which library, which pattern,
-whether to touch payments. Precedent records those decisions once, serves them back to the agent
-*before* it acts, and enforces them at the merge gate. Watch the share of agent work that runs
-safely unattended go up, week over week.
-
-[Quickstart](#-quickstart-60-seconds) · [How agents use it](docs/for-ai-agents.md) · [Concepts](docs/concepts.md) · [Self-hosting](docs/self-hosting.md) · [llms.txt](llms.txt)
+![Precedent stops a guardrail-violating merge that a memory layer only recalls](https://precedent.sh/demo.gif)
 
 </div>
+
+## Install into any repo
+
+```bash
+npx precedent-cli init
+```
+
+Wires the engine + `AGENTS.md` / `CLAUDE.md` / the Claude skill / MCP / the CI gate into your repo —
+Claude Code, Cursor, Codex, Copilot, Windsurf, Gemini — **without overwriting your existing rules**.
+Requires Python 3.9+ (the engine is stdlib-only on the hot path).
+
+## Watch it stop a bad merge
+
+```bash
+npx precedent-cli govern --paths web/store.ts --title "Add Redux for dashboard caching"
+```
+```
+⛔ BLOCK — denied: violates a guardrail (E2)
+   Redux is banned for server-state caching; use React Query
+```
+
+A memory layer would only *recall* that rule — the agent can ignore it. Precedent **binds** it: the same
+check runs in CI and blocks the PR. A compliant change → `✅ ALLOW`, auto-merged.
+
+[Quickstart](#-quickstart-60-seconds) · [How agents use it](docs/for-ai-agents.md) · [Concepts](docs/concepts.md) · [Self-hosting](docs/self-hosting.md) · [llms.txt](llms.txt)
 
 ---
 
