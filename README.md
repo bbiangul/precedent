@@ -59,6 +59,14 @@ The two are symbiotic: the gate makes consulting *worth it* (the same rules bloc
 in-session layer makes the gate *cheap* (it prevents the bad change instead of just blocking it — and
 grows the decision store).
 
+### Not a mockup — the real verdict
+
+![Real precedent-cli govern output: BLOCK, guardrail_conflict, exit 1](https://precedent.sh/demo-real.gif)
+
+That's the actual output. The gate is **deterministic** (authority × risk → verdict); a model is used
+only to judge whether a change *matches* or *conflicts* with an in-scope decision — never to invent the
+verdict.
+
 ## ✨ Quickstart (60 seconds)
 
 ### Install into your repo — one command
