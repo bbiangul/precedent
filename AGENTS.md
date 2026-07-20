@@ -71,6 +71,14 @@ python3 src/hygiene.py            # report contradictions + stale decisions
 python3 src/hygiene.py --propose  # file the proposals
 ```
 
+**Integrity (tamper-evidence).** The audit log is hash-chained; run this in CI/nightly to prove no
+decision or event was altered outside the flow:
+
+```
+python3 src/verify.py             # ✓ ledger intact / ⚠ tampering detected (decision or event edited)
+python3 src/verify.py anchor      # seal seed/synced decisions into the ledger
+```
+
 ## Set up enforcement on GitHub (once per repo — you can do this yourself)
 `init` writes the CI gate workflow. To finish wiring it, run this yourself with the `gh` CLI:
 

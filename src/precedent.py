@@ -24,12 +24,38 @@ _STOP = set("the a an of to and or in on for with by is are be am was were as at
 MODEL = os.environ.get("ARM_MODEL", "deepseek/deepseek-v4-flash")
 
 
-def _log_event(kind, **kw):
-    """Append a consult/record event so a live session's behavior is measurable (flywheel metric)."""
+def _decision_hash(d):
+    """Content hash of a decision — anchors its text/authority/scope in the ledger (tamper-evidence)."""
+    import hashlib
+    key = json.dumps({"id": d.get("id"), "decision": d.get("decision", ""),
+                      "authority": d.get("authority", ""),
+                      "scope": d.get("scope", {}).get("paths", d.get("scope_paths", []))}, sort_keys=True)
+    return hashlib.sha256(key.encode()).hexdigest()
+
+def _last_event_hash():
+    if not os.path.exists(EVENTS):
+        return "genesis"
+    last = ""
+    with open(EVENTS) as f:
+        for line in f:
+            if line.strip():
+                last = line
     try:
-        import time as _t
+        return json.loads(last).get("hash", "genesis") if last else "genesis"
+    except Exception:
+        return "genesis"
+
+def _log_event(kind, **kw):
+    """Append a HASH-CHAINED event: a live session's behavior is measurable (flywheel metric) AND the
+    ledger is tamper-evident — each entry seals the previous one, so an edited/removed/reordered event
+    breaks the chain (see verify.py)."""
+    try:
+        import hashlib, time as _t
+        prev = _last_event_hash()
+        ev = {"ts": int(_t.time()), "kind": kind, **kw, "prev": prev}
+        ev["hash"] = hashlib.sha256(json.dumps(ev, sort_keys=True).encode()).hexdigest()
         with open(EVENTS, "a") as f:
-            f.write(json.dumps({"ts": int(_t.time()), "kind": kind, **kw}) + "\n")
+            f.write(json.dumps(ev) + "\n")
     except Exception:
         pass
 
@@ -180,7 +206,7 @@ def record_episode(note, deny=None):
     store["precedents"].append(ep)
     with open(CAPTURED, "w") as f:
         json.dump(store, f, indent=2)
-    _log_event("record", id=ep["id"], decision=ep["decision"][:140])
+    _log_event("record", id=ep["id"], decision=ep["decision"][:140], content_hash=_decision_hash(ep))
     return ep
 
 def record(note, deny=None):
