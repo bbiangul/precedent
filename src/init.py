@@ -182,19 +182,34 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           set +e
-          python3 {E}/govern_cli.py --title "$PR_TITLE" > verdict.md
+          python3 {E}/govern_cli.py --json --title "$PR_TITLE" > verdict.json
           echo "allow=$?" >> "$GITHUB_OUTPUT"
-          cat verdict.md
-      - name: Post verdict (sticky comment)
+          cat verdict.json
+      - name: Post verdict (sticky — only when it blocks)
         if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const body = '<!-- precedent-gate -->\\n' + fs.readFileSync('verdict.md', 'utf8');
+            const M = '<!-- precedent-gate -->';
+            let v = {}; try { v = JSON.parse(fs.readFileSync('verdict.json', 'utf8')); } catch (e) {}
             const { owner, repo } = context.repo, issue_number = context.issue.number;
             const { data: cs } = await github.rest.issues.listComments({ owner, repo, issue_number });
-            const prev = cs.find(c => c.body && c.body.includes('<!-- precedent-gate -->'));
+            const prev = cs.find(c => c.body && c.body.includes(M));
+            if (v.allow) {                              // clean PR: no noise; flip a prior block to resolved
+              if (prev) await github.rest.issues.updateComment({ owner, repo, comment_id: prev.id,
+                body: M + '\\n✅ **Precedent:** resolved — this change is within policy.' });
+              return;
+            }
+            const head = v.verdict === 'deny' ? '⛔ **Precedent blocked this merge**'
+              : '🟡 **Precedent — human review required**';
+            const gov = (v.precedent_ids || []).join(', ') || '—';
+            const det = ['<details><summary>verdict details</summary>', '', '```',
+              'verdict: ' + v.verdict + '  authority: ' + v.authority_state + '  risk: ' + v.risk_tier,
+              'governing: ' + gov + '  consequential: ' + v.consequential, '```', '</details>'].join('\\n');
+            const body = [M, head, '', '**Why:** ' + (v.why || ''), '`' + ((v.paths || []).join(', ')) + '`', '',
+              'How to proceed: address the decision above, or record an exception with authority — `npx precedent-cli record ...`.',
+              '', det].join('\\n');
             if (prev) await github.rest.issues.updateComment({ owner, repo, comment_id: prev.id, body });
             else await github.rest.issues.createComment({ owner, repo, issue_number, body });
       - name: Enforce
