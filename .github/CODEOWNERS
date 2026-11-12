@@ -1,0 +1,5 @@
+# The gate, the engine and the decision store need a code-owner review, so a PR can't quietly change
+# the rules it is judged by. Takes effect once branch protection requires code-owner reviews.
+/.github/ @bbiangul
+/.precedent/ @bbiangul
+/src/ @bbiangul

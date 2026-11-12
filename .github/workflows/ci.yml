@@ -9,3 +9,5 @@ jobs:
         with: { python-version: "3.12" }
       - name: Autonomy-matrix reference eval (deterministic, no model)
         run: python3 src/govern.py
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests

@@ -30,9 +30,10 @@ jobs:
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}   # semantic authority step; degrades gracefully if unset
+          PR_TITLE: ${{ github.event.pull_request.title }}       # via env, never pasted into the script
         run: |
           set +e
-          python3 src/govern_cli.py --title "${{ github.event.pull_request.title }}" > verdict.md
+          python3 src/govern_cli.py --title "$PR_TITLE" > verdict.md
           echo "allow=$?" >> "$GITHUB_OUTPUT"
           cat verdict.md
       - name: Post verdict to PR
