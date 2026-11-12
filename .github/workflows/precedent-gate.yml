@@ -7,8 +7,12 @@ name: Precedent gate
 # consequentiality -> deterministic risk + autonomy matrix -> verdict. The verdict is
 # posted back to the PR as a comment (the escalation surface); a non-allow verdict fails
 # the check and blocks the merge.
+#
+# pull_request_target runs this file and the engine from the base branch, so a PR cannot rewrite the
+# gate, the engine or the decision store to approve itself. The PR is fetched as data (its diff) and
+# none of its code is executed here.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
 
 permissions:
@@ -19,20 +23,27 @@ jobs:
   govern:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4   # the base branch: the gate's own code and decisions
         with:
-          fetch-depth: 0            # need history for the base...head diff
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch the PR as data
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: git fetch --no-tags origin "pull/$PR_NUMBER/head:pr-head"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Run govern(diff)
         id: gov
         env:
-          GITHUB_BASE_REF: ${{ github.base_ref }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}   # semantic authority step; degrades gracefully if unset
+          PR_TITLE: ${{ github.event.pull_request.title }}       # via env, never pasted into the script
         run: |
           set +e
-          python3 src/govern_cli.py --title "${{ github.event.pull_request.title }}" > verdict.md
+          git diff HEAD...pr-head > pr.diff
+          mapfile -t paths < <(git diff --name-only HEAD...pr-head)
+          python3 src/govern_cli.py --paths "${paths[@]}" --diff pr.diff --title="$PR_TITLE" > verdict.md
           echo "allow=$?" >> "$GITHUB_OUTPUT"
           cat verdict.md
       - name: Post verdict to PR
